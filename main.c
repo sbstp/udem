@@ -350,6 +350,8 @@ result nombre_sub(nombre *a, nombre *b) {
     return ok(nb);
 }
 
+/* mul # of digits : http://stackoverflow.com/a/6566202 */
+
 /* result<char*> */
 result nombre_format(nombre* self) {
     int i, j;
