@@ -43,10 +43,10 @@ typedef struct nombre {
 } nombre;
 
 /* misc */
-inline int max(int, int);
-inline bool is_chiffre(char);
-inline char chiffre_to_car(char);
-inline char car_to_chiffre(char);
+int max(int, int);
+bool is_chiffre(char);
+char chiffre_to_car(char);
+char car_to_chiffre(char);
 /* result */
 result ok(void*);
 result err(int);
