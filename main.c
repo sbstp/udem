@@ -21,17 +21,17 @@ typedef struct result {
     bool is_ok;
     union {
         void* ok;
-        struct {
-            int code;
-            char* err;
-        };
+        int code;
     };
 } result;
 
 /*
 Emprunté de https://doc.rust-lang.org/nightly/std/macro.try!.html
 */
-#define try(expr, var) if (!expr.is_ok) return err(expr.code, expr.err); else var = expr.ok;
+#define try(expr, var) if (!expr.is_ok) return err(expr.code); else var = expr.ok;
+
+/* Code d'erreurs */
+#define OOM 1
 
 /*
 Représente un nombre d'une taille illimité.
@@ -49,14 +49,14 @@ inline char chiffre_to_car(char);
 inline char car_to_chiffre(char);
 /* result */
 result ok(void*);
-result err(int, char*);
+result err(int);
 /* nombre */
-nombre* nombre_new(char*);
-nombre* nombre_clone(nombre*);
+result nombre_new(char*);
+result nombre_clone(nombre*);
 int nombre_compare(nombre*, nombre*);
-nombre* nombre_add(nombre*, nombre*);
-nombre* nombre_sub(nombre*, nombre*);
-char* nombre_format(nombre*);
+result nombre_add(nombre*, nombre*);
+result nombre_sub(nombre*, nombre*);
+result nombre_format(nombre*);
 /* tests unitaires */
 #ifdef TESTS
 void test_nombre_new();
@@ -90,21 +90,23 @@ result ok(void* ok) {
     return res;
 }
 
-result err(int code, char* err) {
+result err(int code) {
     result res;
     res.is_ok = false;
     res.code = code;
-    res.err = err;
     return res;
 }
 
-nombre* nombre_new(char* text) {
+/* result<nombre*> */
+result nombre_new(char* text) {
     int i, j;
     size_t len;
     nombre* nb;
 
-    len = strlen(text);
     nb = malloc(sizeof(nombre));
+    if (nb == NULL) return err(OOM);
+
+    len = strlen(text);
     nb->positif = true;
     nb->len = len;
 
@@ -115,24 +117,36 @@ nombre* nombre_new(char* text) {
     }
 
     nb->chiffres = malloc(sizeof(char) * len);
+    if (nb->chiffres == NULL) {
+        free(nb);
+        return err(OOM);
+    }
 
     for (i = 0, j = len - 1; i < len; i++, j--) {
         nb->chiffres[i] = car_to_chiffre(text[j]);
     }
 
-    return nb;
+    return ok(nb);
 }
 
-nombre* nombre_clone(nombre* nb) {
+/* result<nombre*> */
+result nombre_clone(nombre* nb) {
     nombre* new;
 
     new = malloc(sizeof(nombre));
+    if (new == NULL) return err(OOM);
+
     new->positif = nb->positif;
     new->len = nb->len;
     new->chiffres = malloc(nb->len);
+    if (new->chiffres == NULL) {
+        free(new);
+        return err(OOM);
+    }
+
     memcpy(new->chiffres, nb->chiffres, nb->len);
 
-    return new;
+    return ok(new);
 }
 
 /**
@@ -176,8 +190,9 @@ int nombre_compare(nombre* a, nombre* b) {
      a + -b => sub(a, b)
     -a + -b => -add(a, b)
 */
-nombre* nombre_add(nombre* a, nombre* b) {
-    printf("ADD: %s & %s\n", nombre_format(a), nombre_format(b));
+/* result<nombre*> */
+result nombre_add(nombre* a, nombre* b) {
+    printf("ADD: %s & %s\n", nombre_format(a).ok, nombre_format(b).ok);
     int i, max_len;
     char res, carry;
     nombre *nb, *r;
@@ -185,24 +200,29 @@ nombre* nombre_add(nombre* a, nombre* b) {
     /* a + -b */
     if (a->positif && !b->positif) {
         b->positif = true;
-        r = nombre_sub(a, b);
+        try(nombre_sub(a, b), r);
         b->positif = false;
-        return r;
+        return ok(r);
     /* -a + b */
     } else if (!a->positif && b->positif) {
         a->positif = true;
-        r = nombre_sub(b, a);
+        try(nombre_sub(b, a), r);
         a->positif = false;
-        return r;
+        return ok(r);
     }
 
     max_len = max(a->len, b->len) + 1;
     carry = 0;
 
     nb = malloc(sizeof(nombre));
+    if (nb == NULL) return err(OOM);
     /* a + b  ou  -a + -b */
     nb->positif = a->positif && b->positif;
     nb->chiffres = malloc(max_len);
+    if (nb->chiffres == NULL) {
+        free(nb);
+        return err(OOM);
+    }
 
     // assume deux nombres négatifs
     for (i = 0; i < max_len; i++) {
@@ -228,7 +248,7 @@ nombre* nombre_add(nombre* a, nombre* b) {
 
     nb->len = carry == 1 ? max_len : max_len - 1;
 
-    return nb;
+    return ok(nb);
 }
 
 /*
@@ -239,8 +259,9 @@ nombre* nombre_add(nombre* a, nombre* b) {
       a - b => sub(a, b)
      -a - b => -add(a, b)
 */
-nombre* nombre_sub(nombre *a, nombre *b) {
-    printf("SUB: %s & %s\n", nombre_format(a), nombre_format(b));
+/* result<nombre*> */
+result nombre_sub(nombre *a, nombre *b) {
+    printf("SUB: %s & %s\n", nombre_format(a).ok, nombre_format(b).ok);
     int i, max_len;
     char res, carry, diminuende, diminuteur;
     nombre *nb, *tmp, *r;
@@ -248,22 +269,22 @@ nombre* nombre_sub(nombre *a, nombre *b) {
     /* -a - b */
     if (!a->positif && b->positif) {
         a->positif = true;
-        r = nombre_add(a, b);
+        try(nombre_add(a, b), r);
         r->positif = a->positif = false;
-        return r;
+        return ok(r);
     /* a - -b  */
     } else if (a->positif && !b->positif) {
         b->positif = true;
-        r = nombre_add(a, b);
+        try(nombre_add(a, b), r);
         b->positif = false;
-        return r;
+        return ok(r);
     /* -a - -b */
     } else if (!a->positif && !b->positif) {
         a->positif = b->positif = true;
-        r = nombre_sub(b, a);
+        try(nombre_sub(b, a), r);
         r->positif = false;
         a->positif = b->positif = true;
-        return r;
+        return ok(r);
     }
     /* a - b */
 
@@ -271,9 +292,17 @@ nombre* nombre_sub(nombre *a, nombre *b) {
     carry = 0;
 
     nb = malloc(sizeof(nombre));
+    if (nb == NULL) {
+        return err(OOM);
+    }
+
     nb->positif = true;
     nb->len = max_len;
     nb->chiffres = malloc(max_len);
+    if (nb->chiffres == NULL) {
+        free(nb);
+        return err(OOM);
+    }
 
     switch (nombre_compare(a, b)) {
         case 0:
@@ -318,15 +347,17 @@ nombre* nombre_sub(nombre *a, nombre *b) {
         }
     }
 
-    return nb;
+    return ok(nb);
 }
 
-char* nombre_format(nombre* self) {
+/* result<char*> */
+result nombre_format(nombre* self) {
     int i, j;
     char* text;
     char* start;
 
     text = malloc(self->len + 2);
+    if (text == NULL) return err(OOM);
     start = self->positif ? text : (text + 1);
 
     for (i = 0, j = self->len - 1; i < self->len; i++, j--) {
@@ -340,83 +371,90 @@ char* nombre_format(nombre* self) {
         text[self->len + 1] = '\0';
     }
 
-    return text;
+    return ok(text);
 }
 
 #ifdef TESTS
 
 void test_nombre_new() {
-    assert(nombre_new("5")->positif == true);
-    assert(nombre_new("-5")->positif == false);
-    assert(strcmp(nombre_new("-1234")->chiffres, "\x04\x03\x02\x01") == 0);
+    nombre* n;
+
+    n = nombre_new("5").ok;
+    assert(n->positif == true);
+
+    n = nombre_new("-5").ok;
+    assert(n->positif == false);
+
+    n = nombre_new("-1234").ok;
+    assert(strcmp(n->chiffres, "\x04\x03\x02\x01") == 0);
 }
 
 void test_nombre_clone() {
-    nombre* a = nombre_new("-52");
-    nombre* b = nombre_clone(a);
+    nombre* a = nombre_new("-52").ok;
+    nombre* b = nombre_clone(a).ok;
     assert(a->positif == b->positif);
     assert(a->len == b->len);
     assert(strcmp(a->chiffres, b->chiffres) == 0);
 }
 
 void test_nombre_compare() {
-    assert(nombre_compare(nombre_new("13"), nombre_new("14")) == -1);
-    assert(nombre_compare(nombre_new("-13"), nombre_new("-14")) == 1);
-    assert(nombre_compare(nombre_new("-13"), nombre_new("14")) == -1);
-    assert(nombre_compare(nombre_new("13"), nombre_new("-14")) == 1);
-    assert(nombre_compare(nombre_new("13"), nombre_new("13")) == 0);
+    assert(nombre_compare(nombre_new("13").ok, nombre_new("14").ok) == -1);
+    assert(nombre_compare(nombre_new("-13").ok, nombre_new("-14").ok) == 1);
+    assert(nombre_compare(nombre_new("-13").ok, nombre_new("14").ok) == -1);
+    assert(nombre_compare(nombre_new("13").ok, nombre_new("-14").ok) == 1);
+    assert(nombre_compare(nombre_new("13").ok, nombre_new("13").ok) == 0);
 }
 
 void test_nombre_add() {
     nombre *a, *b;
 
-    a = nombre_new("14");
-    b = nombre_new("14");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("28")) == 0);
+    a = nombre_new("14").ok;
+    b = nombre_new("14").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("28").ok) == 0);
 
-    a = nombre_new("-25");
-    b = nombre_new("25");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
+    a = nombre_new("-25").ok;
+    b = nombre_new("25").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("0").ok) == 0);
 
-    a = nombre_new("-25");
-    b = nombre_new("26");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("1")) == 0);
+    a = nombre_new("-25").ok;
+    b = nombre_new("26").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("1").ok) == 0);
 
-    a = nombre_new("-26");
-    b = nombre_new("25");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("-1")) == 0);
+    a = nombre_new("-26").ok;
+    b = nombre_new("25").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("-1").ok) == 0);
 
-    a = nombre_new("25");
-    b = nombre_new("-25");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
+    a = nombre_new("25").ok;
+    b = nombre_new("-25").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("0").ok) == 0);
 
-    a = nombre_new("-14");
-    b = nombre_new("-14");
-    assert(nombre_compare(nombre_add(a, b), nombre_new("-28")) == 0);
+    a = nombre_new("-14").ok;
+    b = nombre_new("-14").ok;
+    assert(nombre_compare(nombre_add(a, b).ok, nombre_new("-28").ok) == 0);
 }
 
 void test_nombre_sub() {
     nombre *a, *b;
 
-    a = nombre_new("14");
-    b = nombre_new("7");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("7")) == 0);
+    a = nombre_new("14").ok;
+    b = nombre_new("7").ok;
+    assert(nombre_compare(nombre_sub(a, b).ok, nombre_new("7").ok) == 0);
 
-    a = nombre_new("-25");
-    b = nombre_new("-25");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("0")) == 0);
+    a = nombre_new("-25").ok;
+    b = nombre_new("-25").ok;
+    assert(nombre_compare(nombre_sub(a, b).ok, nombre_new("0").ok) == 0);
 
-    a = nombre_new("-25");
-    b = nombre_new("25");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("-50")) == 0);
+    a = nombre_new("-25").ok;
+    b = nombre_new("25").ok;
+    assert(nombre_compare(nombre_sub(a, b).ok, nombre_new("-50").ok) == 0);
 
-    a = nombre_new("25");
-    b = nombre_new("-25");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("50")) == 0);
+    a = nombre_new("25").ok;
+    b = nombre_new("-25").ok;
+    assert(nombre_compare(nombre_sub(a, b).ok, nombre_new("50").ok) == 0);
 
-    a = nombre_new("-14");
-    b = nombre_new("-7");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("-7")) == 0);
+    a = nombre_new("-14").ok;
+    b = nombre_new("-7").ok;
+    assert(nombre_compare(nombre_sub(a, b).ok, nombre_new("-7").ok) == 0);
 }
 
 /* Le tests ne free pas la mémoire puisque le programme s'arrête après. */
