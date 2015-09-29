@@ -9,7 +9,7 @@
 #endif
 
 /*
-Shim pour avoir de booleans.
+Shim pour avoir des booleans.
 */
 typedef enum bool { false = 0, true = 1 } bool;
 
@@ -158,21 +158,30 @@ int nombre_compare(nombre* a, nombre* b) {
 }
 
 nombre* nombre_add(nombre* a, nombre* b) {
+    //printf("ADD: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry;
-    char* chiffres;
-    nombre* nb;
+    nombre *nb, *r;
 
     /* Si les nombres de sont pas du même signe, on utilise la soustraction */
     if (a->positif && !b->positif) {
-        return nombre_sub(a, b);
+        b->positif = true;
+        r = nombre_sub(a, b);
+        b->positif = false;
+        return r;
     } else if (!a->positif && b->positif) {
-        return nombre_sub(b, a);
+        a->positif = true;
+        r = nombre_sub(b, a);
+        a->positif = false;
+        return r;
     }
 
     max_len = max(a->len, b->len) + 1;
     carry = 0;
-    chiffres = malloc(max_len);
+
+    nb = malloc(sizeof(nombre));
+    nb->positif = a->positif && b->positif;
+    nb->chiffres = malloc(max_len);
 
     // assume deux nombres négatifs
     for (i = 0; i < max_len; i++) {
@@ -183,7 +192,7 @@ nombre* nombre_add(nombre* a, nombre* b) {
         } else if (i < b->len) {
             res = b->chiffres[i];
         } else {
-            chiffres[i] = carry;
+            nb->chiffres[i] = carry;
             break;
         }
 
@@ -193,35 +202,52 @@ nombre* nombre_add(nombre* a, nombre* b) {
             carry = 1;
         } else carry = 0;
 
-        chiffres[i] = res;
+        nb->chiffres[i] = res;
     }
 
-    nb = malloc(sizeof(nombre));
-    nb->positif = true;
     nb->len = carry == 1 ? max_len : max_len - 1;
-    nb->chiffres = chiffres;
+
     return nb;
 }
 
-nombre* nombre_sub(nombre* a, nombre* b) {
+nombre* nombre_sub(nombre *a, nombre *b) {
+    //printf("SUB: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry, diminuende, diminuteur;
-    char* chiffres;
-    nombre* nb, *tmp, *r;
-    bool swapped;
+    nombre *nb, *tmp, *r;
 
-    /* si les deux nombres sont négatifs, on ajouter puis fait la négation */
-    if (!a->positif && !b->positif) {
+    /* -a - (+b) <=> -(a + b) | e.g. -25 - (+25) = -50 */
+    if (!a->positif && b->positif) {
         a->positif = b->positif = true;
-        puts(nombre_format(a));
-        puts(nombre_format(b));
         r = nombre_add(a, b);
-        a->positif = b->positif = false;
         r->positif = false;
+        a->positif = false;
+        b->positif = true;
+        return r;
+    /* a - (-b) <=> a + b | e.g. 25 - (-25) = 50 */
+    } else if (a->positif && !b->positif) {
+        a->positif = b->positif = true;
+        r = nombre_add(a, b);
+        r->positif = true;
+        a->positif = true;
+        b->positif = false;
+        return r;
+    } else if (!a->positif && !b->positif) {
+        a->positif = b->positif = true;
+        r = nombre_add(b, a);
+        r->positif = false;
+        a->positif = b->positif = true;
         return r;
     }
 
-    swapped = false;
+    max_len = max(a->len, b->len);
+    carry = 0;
+
+    nb = malloc(sizeof(nombre));
+    nb->positif = true;
+    nb->len = max_len;
+    nb->chiffres = malloc(max_len);
+
     switch (nombre_compare(a, b)) {
         case 0:
             return nombre_new("0");
@@ -229,15 +255,10 @@ nombre* nombre_sub(nombre* a, nombre* b) {
             tmp = a;
             a = b;
             b = tmp;
-            swapped = true;
+            nb->positif = false;
             break;
     }
 
-    max_len = max(a->len, b->len);
-    carry = 0;
-    chiffres = malloc(max_len);
-
-    // assume 2 nombres positifs
     for (i = 0; i < max_len; i++) {
         if (i < a->len && i < b->len) {
             diminuende = a->chiffres[i];
@@ -250,7 +271,7 @@ nombre* nombre_sub(nombre* a, nombre* b) {
             diminuteur = b->chiffres[i];
         }
 
-        diminuteur -= carry;
+        diminuende -= carry;
         if (diminuende < diminuteur) {
             res = 10 + diminuende - diminuteur;
             carry = 1;
@@ -258,16 +279,18 @@ nombre* nombre_sub(nombre* a, nombre* b) {
             res = diminuende - diminuteur;
             carry = 0;
         }
-
-        chiffres[i] = res;
+        printf("%d = %d %d %d\n", res, diminuende, diminuteur, carry);
+        nb->chiffres[i] = res;
     }
 
-    // TODO trim extra 0
+    // TODO: better algorithm
+    /* enlever les zéros en extra */
+    for (int i = max_len - 1; i > 0; i--) {
+        if (nb->chiffres[i] == 0) {
+            nb->len--;
+        }
+    }
 
-    nb = malloc(sizeof(nombre));
-    nb->positif = !swapped;
-    nb->len = max_len;
-    nb->chiffres = chiffres;
     return nb;
 }
 
@@ -321,15 +344,40 @@ void test_nombre_add() {
     nombre *a, *b;
 
     a = nombre_new("14");
-    assert(nombre_compare(nombre_add(a, a), nombre_new("28")) == 0);
+    b = nombre_new("14");
+    assert(nombre_compare(nombre_add(a, b), nombre_new("28")) == 0);
 
     a = nombre_new("-25");
     b = nombre_new("25");
     assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
+
+    a = nombre_new("25");
+    b = nombre_new("-25");
+    assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
+
+    a = nombre_new("-14");
+    b = nombre_new("-14");
+    assert(nombre_compare(nombre_add(a, b), nombre_new("-28")) == 0);
 }
 
 void test_nombre_sub() {
+    nombre *a, *b;
 
+    a = nombre_new("14");
+    b = nombre_new("7");
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("7")) == 0);
+
+    a = nombre_new("-25");
+    b = nombre_new("25");
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("-50")) == 0);
+
+    a = nombre_new("25");
+    b = nombre_new("-25");
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("50")) == 0);
+
+    a = nombre_new("-14");
+    b = nombre_new("-7");
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("-21")) == 0);
 }
 
 /* Le tests ne free pas la mémoire puisque le programme s'arrête après. */
