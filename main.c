@@ -15,6 +15,7 @@ typedef enum bool { false = 0, true = 1 } bool;
 
 /*
 Type algébrique représentant une opération qui peut produire une erreur.
+Emprunté de https://doc.rust-lang.org/nightly/std/result/enum.Result.html
 */
 typedef struct result {
     bool is_ok;
@@ -26,6 +27,11 @@ typedef struct result {
         };
     };
 } result;
+
+/*
+Emprunté de https://doc.rust-lang.org/nightly/std/macro.try!.html
+*/
+#define try(expr, var) if (!expr.is_ok) return err(expr.code, expr.err); else var = expr.ok;
 
 /*
 Représente un nombre d'une taille illimité.
@@ -65,7 +71,7 @@ inline int max(int a, int b) {
     return a > b ? a : b;
 }
 
-bool is_chiffre(char c) {
+inline bool is_chiffre(char c) {
     return c >= '0' && c <= '9';
 }
 
@@ -223,20 +229,17 @@ nombre* nombre_sub(nombre *a, nombre *b) {
 
     /* -a - (+b) <=> -(a + b) | e.g. -25 - (+25) = -50 */
     if (!a->positif && b->positif) {
-        a->positif = b->positif = true;
+        a->positif = true;
         r = nombre_add(a, b);
-        r->positif = false;
-        a->positif = false;
-        b->positif = true;
+        r->positif = a->positif = false;
         return r;
     /* a - (-b) <=> a + b | e.g. 25 - (-25) = 50 */
     } else if (a->positif && !b->positif) {
-        a->positif = b->positif = true;
+        b->positif = true;
         r = nombre_add(a, b);
-        r->positif = true;
-        a->positif = true;
         b->positif = false;
         return r;
+    /* -a - (-b) <=> -a + b | e.g. -25 - (-25) = 0 */
     } else if (!a->positif && !b->positif) {
         a->positif = b->positif = true;
         r = nombre_sub(b, a);
@@ -284,7 +287,6 @@ nombre* nombre_sub(nombre *a, nombre *b) {
             res = diminuende - diminuteur;
             carry = 0;
         }
-        printf("%d = %d %d %d\n", res, diminuende, diminuteur, carry);
         nb->chiffres[i] = res;
     }
 
@@ -356,6 +358,14 @@ void test_nombre_add() {
     b = nombre_new("25");
     assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
 
+    a = nombre_new("-25");
+    b = nombre_new("26");
+    assert(nombre_compare(nombre_add(a, b), nombre_new("1")) == 0);
+
+    a = nombre_new("-26");
+    b = nombre_new("25");
+    assert(nombre_compare(nombre_add(a, b), nombre_new("-1")) == 0);
+
     a = nombre_new("25");
     b = nombre_new("-25");
     assert(nombre_compare(nombre_add(a, b), nombre_new("0")) == 0);
@@ -416,10 +426,6 @@ int main(int argc, char* argv[]) {
     char variables[26];
     memset(variables, 0, 26);
 
-    nombre* a = nombre_new("-25");
-    nombre* b = nombre_new("-25");
-    nombre* r = nombre_sub(a, b);
-    puts(nombre_format(r));
     //
     // bool quit = false;
     // while (!quit) {
