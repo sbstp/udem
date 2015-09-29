@@ -1,4 +1,4 @@
-#define TESTS
+#define TESTS 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -200,7 +200,7 @@ nombre* nombre_add(nombre* a, nombre* b) {
     carry = 0;
 
     nb = malloc(sizeof(nombre));
-    /* a + b  ou  -a + -b */ 
+    /* a + b  ou  -a + -b */
     nb->positif = a->positif && b->positif;
     nb->chiffres = malloc(max_len);
 
@@ -311,7 +311,8 @@ nombre* nombre_sub(nombre *a, nombre *b) {
 
     // TODO: better algorithm
     /* enlever les zéros en extra */
-    for (int i = max_len - 1; i > 0; i--) {
+    i = 0;
+    for (i = max_len - 1; i > 0; i--) {
         if (nb->chiffres[i] == 0) {
             nb->len--;
         }
