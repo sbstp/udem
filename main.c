@@ -168,18 +168,27 @@ int nombre_compare(nombre* a, nombre* b) {
     return 0;
 }
 
+/*
+    Table de branchement:
+
+      a + b => add(a, b)
+     -a + b => sub(b, a)
+     a + -b => sub(a, b)
+    -a + -b => -add(a, b)
+*/
 nombre* nombre_add(nombre* a, nombre* b) {
     printf("ADD: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry;
     nombre *nb, *r;
 
-    /* Si les nombres de sont pas du même signe, on utilise la soustraction */
+    /* a + -b */
     if (a->positif && !b->positif) {
         b->positif = true;
         r = nombre_sub(a, b);
         b->positif = false;
         return r;
+    /* -a + b */
     } else if (!a->positif && b->positif) {
         a->positif = true;
         r = nombre_sub(b, a);
@@ -191,6 +200,7 @@ nombre* nombre_add(nombre* a, nombre* b) {
     carry = 0;
 
     nb = malloc(sizeof(nombre));
+    /* a + b  ou  -a + -b */ 
     nb->positif = a->positif && b->positif;
     nb->chiffres = malloc(max_len);
 
@@ -221,25 +231,33 @@ nombre* nombre_add(nombre* a, nombre* b) {
     return nb;
 }
 
+/*
+    Table de branchement:
+
+     a - -b => add(a, b)
+    -a - -b => sub(b, a)
+      a - b => sub(a, b)
+     -a - b => -add(a, b)
+*/
 nombre* nombre_sub(nombre *a, nombre *b) {
     printf("SUB: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry, diminuende, diminuteur;
     nombre *nb, *tmp, *r;
 
-    /* -a - (+b) <=> -(a + b) | e.g. -25 - (+25) = -50 */
+    /* -a - b */
     if (!a->positif && b->positif) {
         a->positif = true;
         r = nombre_add(a, b);
         r->positif = a->positif = false;
         return r;
-    /* a - (-b) <=> a + b | e.g. 25 - (-25) = 50 */
+    /* a - -b  */
     } else if (a->positif && !b->positif) {
         b->positif = true;
         r = nombre_add(a, b);
         b->positif = false;
         return r;
-    /* -a - (-b) <=> -a + b | e.g. -25 - (-25) = 0 */
+    /* -a - -b */
     } else if (!a->positif && !b->positif) {
         a->positif = b->positif = true;
         r = nombre_sub(b, a);
@@ -247,6 +265,7 @@ nombre* nombre_sub(nombre *a, nombre *b) {
         a->positif = b->positif = true;
         return r;
     }
+    /* a - b */
 
     max_len = max(a->len, b->len);
     carry = 0;
