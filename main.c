@@ -130,6 +130,7 @@ nombre* nombre_clone(nombre* nb) {
 }
 
 /**
+ * 0 est égal à -0
  *  1 : a est plus grand que b
  * -1 : a est plus petit que b
  *  0 : a et b sont égaux
@@ -137,6 +138,10 @@ nombre* nombre_clone(nombre* nb) {
 int nombre_compare(nombre* a, nombre* b) {
     bool positif;
     int i;
+
+    /* 0 est -0 */
+    if (a->len == 1 && b->len == 1 && a->chiffres[0] == 0 && b->chiffres[0] == 0)
+        return 0;
 
     if (a->positif && !b->positif)
         return 1;
@@ -158,7 +163,7 @@ int nombre_compare(nombre* a, nombre* b) {
 }
 
 nombre* nombre_add(nombre* a, nombre* b) {
-    //printf("ADD: %s & %s\n", nombre_format(a), nombre_format(b));
+    printf("ADD: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry;
     nombre *nb, *r;
@@ -211,7 +216,7 @@ nombre* nombre_add(nombre* a, nombre* b) {
 }
 
 nombre* nombre_sub(nombre *a, nombre *b) {
-    //printf("SUB: %s & %s\n", nombre_format(a), nombre_format(b));
+    printf("SUB: %s & %s\n", nombre_format(a), nombre_format(b));
     int i, max_len;
     char res, carry, diminuende, diminuteur;
     nombre *nb, *tmp, *r;
@@ -234,7 +239,7 @@ nombre* nombre_sub(nombre *a, nombre *b) {
         return r;
     } else if (!a->positif && !b->positif) {
         a->positif = b->positif = true;
-        r = nombre_add(b, a);
+        r = nombre_sub(b, a);
         r->positif = false;
         a->positif = b->positif = true;
         return r;
@@ -368,6 +373,10 @@ void test_nombre_sub() {
     assert(nombre_compare(nombre_sub(a, b), nombre_new("7")) == 0);
 
     a = nombre_new("-25");
+    b = nombre_new("-25");
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("0")) == 0);
+
+    a = nombre_new("-25");
     b = nombre_new("25");
     assert(nombre_compare(nombre_sub(a, b), nombre_new("-50")) == 0);
 
@@ -377,7 +386,7 @@ void test_nombre_sub() {
 
     a = nombre_new("-14");
     b = nombre_new("-7");
-    assert(nombre_compare(nombre_sub(a, b), nombre_new("-21")) == 0);
+    assert(nombre_compare(nombre_sub(a, b), nombre_new("-7")) == 0);
 }
 
 /* Le tests ne free pas la mémoire puisque le programme s'arrête après. */
@@ -408,8 +417,8 @@ int main(int argc, char* argv[]) {
     memset(variables, 0, 26);
 
     nombre* a = nombre_new("-25");
-    nombre* b = nombre_new("25");
-    nombre* r = nombre_add(a, b);
+    nombre* b = nombre_new("-25");
+    nombre* r = nombre_sub(a, b);
     puts(nombre_format(r));
     //
     // bool quit = false;
