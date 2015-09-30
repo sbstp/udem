@@ -15,6 +15,12 @@ struct num {
     struct digit *first;
 };
 
+struct charbuff {
+    int cap;
+    int len;
+    char* buff;
+};
+
 /* convertit une valeur numérique [0-9] en son caractère */
 char val_to_car(char);
 /* convertit un caractère ['0'-'9'] en sa valeur numérique */
@@ -28,6 +34,15 @@ struct num* num_clone(const struct num*);
 void num_free(struct num*);
 /* formatter le nombre en string */
 char* num_to_str(const struct num*);
+
+/* créer un  nouveau charbuff avec la capacitée donnée */
+struct charbuff* charbuff_new(int cap);
+/* ajouter un caractère et redimensionner au besoin */
+bool charbuff_push(struct charbuff*, char);
+/* disposer du texte contenu, mais sauvegarder l'espace mémoire  */
+void charbuff_clear(struct charbuff*);
+/* libérer la mémoire utilisé */
+void charbuff_free(struct charbuff*);
 
 /* implémentation */
 
@@ -147,6 +162,55 @@ char* num_to_str(const struct num *n) {
     }
 
     return text;
+}
+
+struct charbuff* charbuff_new(int cap) {
+    struct charbuff *cb;
+
+    cb = malloc(sizeof(struct charbuff));
+    if (cb == NULL) return NULL;
+
+    cb->cap = cap;
+    cb->len = 0;
+
+    cb->buff = malloc(sizeof(char) * cap + 1);
+    if (cb->buff == NULL) {
+        free(cb);
+        return NULL;
+    }
+
+    return cb;
+}
+
+bool charbuff_push(struct charbuff *cb, char c) {
+    int newcap;
+    char* buff;
+
+    if (cb->len >= cb->cap) {
+        newcap = cb->cap * 2;
+        buff = realloc(cb->buff, sizeof(char) * newcap + 1);
+        if (buff == NULL) {
+            charbuff_free(cb);
+            return false;
+        }
+        cb->cap = newcap;
+        cb->buff = buff;
+    }
+
+    cb->buff[cb->len++] = c;
+    cb->buff[cb->len] = '\0';
+
+    return true;
+}
+
+void charbuff_clear(struct charbuff *cb) {
+    cb->buff[0] = '\0';
+    cb->len = 0;
+}
+
+void charbuff_free(struct charbuff *cb) {
+    free(cb->buff);
+    free(cb);
 }
 
 int main(int argc, char **argv) {
