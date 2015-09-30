@@ -30,10 +30,10 @@ char car_to_val(char);
 struct num* num_from_str(const char*);
 /* créer un clone complet du nombre */
 struct num* num_clone(const struct num*);
-/* libérer la mémoire utilisée par un nombre */
-void num_free(struct num*);
 /* formatter le nombre en string */
 char* num_to_str(const struct num*);
+/* libérer la mémoire utilisée par un nombre */
+void num_free(struct num*);
 
 /* créer un  nouveau charbuff avec la capacitée donnée */
 struct charbuff* charbuff_new(int cap);
@@ -125,19 +125,6 @@ struct num* num_clone(const struct num *n) {
     return c;
 }
 
-void num_free(struct num *n) {
-    struct digit *d, *t;
-
-    d = n->first;
-    while (d != NULL) {
-        t = d->next;
-        free(d);
-        d = t;
-    }
-
-    free(n);
-}
-
 char* num_to_str(const struct num *n) {
     int len, i;
     char *text;
@@ -162,6 +149,19 @@ char* num_to_str(const struct num *n) {
     }
 
     return text;
+}
+
+void num_free(struct num *n) {
+    struct digit *d, *t;
+
+    d = n->first;
+    while (d != NULL) {
+        t = d->next;
+        free(d);
+        d = t;
+    }
+
+    free(n);
 }
 
 struct charbuff* charbuff_new(int cap) {
