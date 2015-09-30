@@ -21,6 +21,12 @@ struct charbuff {
     char* buff;
 };
 
+struct stack {
+    int cap;
+    int len;
+    void** items;
+};
+
 /* convertit une valeur numérique [0-9] en son caractère */
 char val_to_car(char);
 /* convertit un caractère ['0'-'9'] en sa valeur numérique */
@@ -43,6 +49,15 @@ bool charbuff_push(struct charbuff*, char);
 void charbuff_clear(struct charbuff*);
 /* libérer la mémoire utilisé */
 void charbuff_free(struct charbuff*);
+
+/* créer un nouvea stack avec la capacité donnée */
+struct stack* stack_new(int cap);
+/* ajouter un élément au tas */
+bool stack_push(struct stack*, void*);
+/* obtenir l'élément au dessus du tas */
+void* stack_pop(struct stack*);
+/* libérer la mémoire utilisée par la tas */
+void stack_free(struct stack*);
 
 /* implémentation */
 
@@ -211,6 +226,52 @@ void charbuff_clear(struct charbuff *cb) {
 void charbuff_free(struct charbuff *cb) {
     free(cb->buff);
     free(cb);
+}
+
+struct stack* stack_new(int cap) {
+    struct stack *s;
+
+    s = malloc(sizeof(struct stack));
+    if (s == NULL) return NULL;
+
+    s->cap = cap;
+    s->len = 0;
+
+    s->items = malloc(sizeof(void*) * cap);
+    if (s->items == NULL) {
+        free(s);
+        return NULL;
+    }
+
+    return s;
+}
+
+bool stack_push(struct stack *s, void *item) {
+    int newcap;
+    void** items;
+
+    if (s->len >= s->cap) {
+        newcap = s->cap * 2;
+        items = realloc(s->items, newcap);
+        if (items == NULL) return false;
+        s->cap = newcap;
+        s->items = items;
+    }
+
+    s->items[s->len++] = item;
+    return true;
+}
+
+void* stack_pop(struct stack *s) {
+    if (s->len > 0) {
+        return s->items[--s->len];
+    }
+    return NULL;
+}
+
+void stack_free(struct stack *s) {
+    free(s->items);
+    free(s);
 }
 
 int main(int argc, char **argv) {
