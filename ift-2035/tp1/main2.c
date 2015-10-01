@@ -27,6 +27,18 @@ struct stack {
     void** items;
 };
 
+struct token {
+    size_t len;
+    char* text;
+};
+
+struct tokenizer {
+    const char* src;
+    size_t pos;
+    size_t len;
+    struct charbuff* cb;
+};
+
 enum ast_node_kind {
     AST_NODE_KIND_ASSIGN,
     AST_NODE_KIND_USE,
@@ -69,6 +81,10 @@ struct ast_node {
     };
 };
 
+struct inter {
+    int vars[26];
+};
+
 /* convertit une valeur numérique [0-9] en son caractère */
 char val_to_car(char);
 /* convertit un caractère ['0'-'9'] en sa valeur numérique */
@@ -107,6 +123,13 @@ void* stack_pop(struct stack*);
 /* libérer la mémoire utilisée par le tas */
 void stack_free(struct stack*);
 
+/* créer un nouveau tokenizer à partir de la source */
+struct tokenizer* tokenizer_new(const char*);
+/* obtenir le prochain token */
+bool tokenizer_next(struct tokenizer*, struct token*);
+/* libérer l'espace utilisé par le tokenizer */
+void tokenizer_free(struct tokenizer*);
+
 /* créer un noeud de type assignation */
 struct ast_node* ast_node_assign(char, struct ast_node*);
 /* créer un noeud de type utilisation de variable */
@@ -119,6 +142,11 @@ struct ast_node* ast_node_oper(enum ast_oper_kind, struct ast_node*, struct ast_
 struct ast_node* ast_parse(const char*);
 /* libérer la mémoire utilisée par l'ASA */
 void ast_node_free(struct ast_node*);
+
+/* évaluer l'ASA et retourner la valeur de l'expression */
+int inter_eval(struct inter*, struct ast_node*);
+/* imprimer la valeur de toutes les variables */
+void inter_print_vars(struct inter*);
 
 /* implémentation */
 
@@ -347,6 +375,48 @@ void stack_free(struct stack *s) {
     free(s);
 }
 
+struct tokenizer* tokenizer_new(const char *src) {
+    struct tokenizer *tkzer;
+
+    tkzer = malloc(sizeof(struct tokenizer));
+    tkzer->pos = 0;
+    tkzer->len = strlen(src);
+    tkzer->src = src;
+    tkzer->cb = charbuff_new(16);
+
+    return tkzer;
+}
+
+bool tokenizer_next(struct tokenizer* tkzer, struct token *tok) {
+    char car;
+
+    if (tkzer->pos >= tkzer->len) return false;
+
+    charbuff_clear(tkzer->cb);
+    do {
+        car = tkzer->src[tkzer->pos++];
+        if (car == '\0') break;
+        if (is_whitespace(car)) {
+            /* consommer les espaces superflus */
+            while (car != '\0' && is_whitespace(car)) {
+                car = tkzer->src[++tkzer->pos];
+            }
+            break;
+        }
+        charbuff_push(tkzer->cb, car);
+    } while (true);
+
+    tok->len = tkzer->cb->len;
+    tok->text = tkzer->cb->buff;
+
+    return true;
+}
+
+void tokenizer_free(struct tokenizer *tkzer) {
+    charbuff_free(tkzer->cb);
+    free(tkzer);
+}
+
 struct ast_node* ast_node_assign(char var, struct ast_node *val) {
     struct ast_node *node;
 
@@ -480,10 +550,6 @@ void ast_node_free(struct ast_node *node) {
     }
     free(node);
 }
-
-struct inter {
-    int vars[26];
-};
 
 int inter_eval(struct inter *vm, struct ast_node *node) {
     int val;
