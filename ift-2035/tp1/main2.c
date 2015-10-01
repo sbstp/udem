@@ -44,16 +44,16 @@ struct num* num_from_str(const char*);
 struct num* num_clone(const struct num*);
 /* formatter le nombre en string */
 char* num_to_str(const struct num*);
-/* libérer la mémoire utilisée par un nombre */
+/* libérer la mémoire utilisée par le nombre */
 void num_free(struct num*);
 
-/* créer un  nouveau charbuff avec la capacitée donnée */
+/* créer un nouveau charbuff avec la capacitée donnée */
 struct charbuff* charbuff_new(int cap);
 /* ajouter un caractère et redimensionner au besoin */
 bool charbuff_push(struct charbuff*, char);
 /* disposer du texte contenu, mais sauvegarder l'espace mémoire  */
 void charbuff_clear(struct charbuff*);
-/* libérer la mémoire utilisé */
+/* libérer la mémoire utilisé par le tampon */
 void charbuff_free(struct charbuff*);
 
 /* créer un nouvea stack avec la capacité donnée */
@@ -62,7 +62,7 @@ struct stack* stack_new(int cap);
 bool stack_push(struct stack*, void*);
 /* obtenir l'élément au dessus du tas */
 void* stack_pop(struct stack*);
-/* libérer la mémoire utilisée par la tas */
+/* libérer la mémoire utilisée par le tas */
 void stack_free(struct stack*);
 
 /* implémentation */
@@ -223,7 +223,7 @@ bool charbuff_push(struct charbuff *cb, char c) {
         newcap = cb->cap * 2;
         buff = realloc(cb->buff, sizeof(char) * newcap + 1);
         if (buff == NULL) {
-            charbuff_free(cb);
+            charbuff_free(cb); /* TODO: don't free */
             return false;
         }
         cb->cap = newcap;
