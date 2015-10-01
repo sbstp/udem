@@ -31,6 +31,12 @@ struct stack {
 char val_to_car(char);
 /* convertit un caractère ['0'-'9'] en sa valeur numérique */
 char car_to_val(char);
+/* détermine si le caractère donné est un chiffre */
+bool is_digit(char);
+/* détermine si le caractère donné est une lettre */
+bool is_letter(char);
+/* détermine si le caractère donné est un espace */
+bool is_whitespace(char);
 
 /* créer un nombre à partir d'une string */
 struct num* num_from_str(const char*);
@@ -67,6 +73,18 @@ inline char val_to_car(char val) {
 
 inline char car_to_val(char car) {
     return car - '0';
+}
+
+inline bool is_digit(char car) {
+    return car >= '0' && car <= '9';
+}
+
+inline bool is_letter(char car) {
+    return car >= 'a' && car <= 'z';
+}
+
+inline bool is_whitespace(char car) {
+    return car == ' ' || car == '\t';
 }
 
 struct num* num_from_str(const char *text) {
@@ -274,10 +292,224 @@ void stack_free(struct stack *s) {
     free(s);
 }
 
+enum ast_kind {
+    AST_KIND_ASSIGN,
+    AST_KIND_USE,
+    AST_KIND_NUMBER,
+    AST_KIND_OPERATOR,
+};
+
+enum ast_oper_kind {
+    AST_OPER_KIND_ADD,
+    AST_OPER_KIND_SUB,
+    AST_OPER_KIND_MUL,
+};
+
+struct ast_node {
+    enum ast_kind kind;
+    union {
+        /* assignation de variable */
+        struct {
+            char var;
+            struct ast_node* val;
+        } assign;
+        /* utilisation de variable */
+        struct {
+            char var;
+        } use;
+        /* nombre */
+        struct {
+            char* val;
+        } num;
+        /* opérateur */
+        struct {
+            enum ast_oper_kind kind;
+            struct ast_node *op1;
+            struct ast_node *op2;
+        } oper;
+    };
+};
+
+struct ast_node* ast_node_assign(char var, struct ast_node *val) {
+    struct ast_node *node;
+
+    node = malloc(sizeof(struct ast_node));
+    node->kind = AST_KIND_ASSIGN;
+    node->assign.var = var;
+    node->assign.val = val;
+
+    return node;
+}
+
+struct ast_node* ast_node_use(char var) {
+    struct ast_node *node;
+
+    node = malloc(sizeof(struct ast_node));
+    node->kind = AST_KIND_USE;
+    node->assign.var = var;
+
+    return node;
+}
+
+struct ast_node* ast_node_num(const char* source, int len) {
+    struct ast_node *node;
+    char* val;
+
+    val = malloc(sizeof(char) * len + 1);
+    strcpy(val, source);
+
+    node = malloc(sizeof(struct ast_node));
+    node->kind = AST_KIND_NUMBER;
+    node->num.val = val;
+
+    return node;
+}
+
+struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, struct ast_node* op2) {
+    struct ast_node *node;
+
+    node = malloc(sizeof(struct ast_node));
+    node->kind = AST_KIND_OPERATOR;
+    node->oper.kind = kind;
+    node->oper.op1 = op1;
+    node->oper.op2 = op2;
+
+    return node;
+}
+
+struct ast_node* ast_parse(const char* text) {
+    int i, len;
+    char car, var;
+    struct ast_node *node, *op1, *op2;
+    struct stack *nodes;
+    struct charbuff *cb;
+
+    len = strlen(text);
+    nodes = stack_new(2);
+    cb = charbuff_new(16);
+
+    for (i = 0; i < len; i++) {
+        car = text[i];
+        if (is_whitespace(car)) {
+            printf("whitespace\n");
+            continue;
+        }
+        if (is_digit(car)) {
+            while (is_digit(text[i]))
+                charbuff_push(cb, text[i++]);
+            printf("pushing number: %s\n", cb->buff);
+            node = ast_node_num(cb->buff, cb->len);
+            stack_push(nodes, node);
+        } else if (car == '+') {
+            op1 = stack_pop(nodes);
+            op2 = stack_pop(nodes);
+            // TODO: error if op1 or op2 null
+            printf("pushing add\n");
+            node = ast_node_oper(AST_OPER_KIND_ADD, op1, op2);
+            stack_push(nodes, node);
+        } else if (car == '-') {
+            op1 = stack_pop(nodes);
+            op2 = stack_pop(nodes);
+            // TODO: error if op1 or op2 null
+            printf("pushing sub\n");
+            node = ast_node_oper(AST_OPER_KIND_SUB, op1, op2);
+            stack_push(nodes, node);
+        } else if (car == '*') {
+            op1 = stack_pop(nodes);
+            op2 = stack_pop(nodes);
+            // TODO: error if op1 or op2 null
+            printf("pushing mul\n");
+            node = ast_node_oper(AST_OPER_KIND_MUL, op1, op2);
+            stack_push(nodes, node);
+        } else if (car == '=') {
+            var = text[++i];
+            if (is_letter(var)) {
+                node = stack_pop(nodes);
+                node = ast_node_assign(var, node);
+                stack_push(nodes, node);
+                printf("pushing assign of %c\n", var);
+            }
+            // TODO: invalid variable name
+        } else if (is_letter(car)) {
+            node = ast_node_use(car);
+            stack_push(nodes, node);
+            printf("pushing variable %c\n", car);
+        }
+
+        charbuff_clear(cb);
+    }
+
+    charbuff_free(cb);
+    return stack_pop(nodes);
+}
+
+struct inter {
+    int vars[26];
+};
+
+int inter_eval(struct inter *vm, struct ast_node *node) {
+    int val;
+
+    switch (node->kind) {
+        case AST_KIND_ASSIGN:
+            printf("in assign\n");
+            val = inter_eval(vm, node->assign.val);
+            vm->vars[node->assign.var - 'a'] = val;
+            return val;
+        case AST_KIND_USE:
+            printf("in use\n");
+            return vm->vars[node->use.var - 'a'];
+        case AST_KIND_NUMBER:
+            printf("in number\n");
+            int val = atoi(node->num.val);
+            return val;
+        case AST_KIND_OPERATOR:
+            printf("in oper\n");
+            switch (node->oper.kind) {
+                // TODO: use big num
+                case AST_OPER_KIND_ADD:
+                    return inter_eval(vm, node->oper.op1) + inter_eval(vm, node->oper.op2);
+                case AST_OPER_KIND_SUB:
+                    return inter_eval(vm, node->oper.op2) - inter_eval(vm, node->oper.op1);
+                case AST_OPER_KIND_MUL:
+                    return inter_eval(vm, node->oper.op1) * inter_eval(vm, node->oper.op2);
+            }
+    }
+
+    return 0;
+}
+
+void inter_print_vars(struct inter *vm) {
+    int i;
+    for (i = 0; i < 26; i++) {
+        printf("%c = %d\n", i + 'a', vm->vars[i]);
+    }
+}
+
 int main(int argc, char **argv) {
-    struct num *n = num_from_str("123456");
-    struct num *c = num_clone(n);
-    printf("%d %d %s\n", n->pos, n->len, num_to_str(n));
-    printf("%d %d %s\n", c->pos, c->len, num_to_str(c));
+    int val, c;
+    struct inter vm;
+    struct ast_node* node;
+    struct charbuff* cb;
+
+    memset(&vm, 0, sizeof(struct inter));
+    cb = charbuff_new(20);
+
+    printf("> ");
+    while ((c = getchar()) != EOF) {
+        if (c == '\r') continue;
+        if (c == '\n') {
+            node = ast_parse(cb->buff);
+            val = inter_eval(&vm, ast_parse(cb->buff));
+            printf("%d\n", val);
+            charbuff_clear(cb);
+            printf("> ");
+        } else {
+            charbuff_push(cb, c);
+        }
+    }
+    printf("\nAu revoir!\n");
+
+    charbuff_free(cb);
     return 0;
 }
