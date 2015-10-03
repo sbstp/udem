@@ -683,10 +683,13 @@ int* inter_eval(struct inter *vm, struct ast_node *node) {
                 // TODO: use big num
                 case AST_OPER_KIND_ADD:
                     *val = *op1 + *op2;
+                    break;
                 case AST_OPER_KIND_SUB:
                     *val = *op1 - *op2;
+                    break;
                 case AST_OPER_KIND_MUL:
                     *val = *op1 * *op2;
+                    break;
             }
 
             return val;
