@@ -97,7 +97,7 @@ struct ast_parse_result {
 };
 
 struct inter {
-    int vars[26];
+    int *vars[26];
 };
 
 /* convertit une valeur numérique [0-9] en son caractère */
@@ -156,12 +156,20 @@ struct ast_node* ast_node_oper(enum ast_oper_kind, struct ast_node*, struct ast_
 /* analyser la chaîne de caractères et construire l'ASA */
 struct ast_parse_result ast_parse(const char*);
 /* obtenir un approprié message pour l'erreur donnée */
-const char* ast_parse_err_msg(enum ast_parse_err);
+void ast_parse_err_print_msg(enum ast_parse_err);
 /* libérer la mémoire utilisée par l'ASA */
 void ast_node_free(struct ast_node*);
 
+/* convertit un nom de variable en index */
+int inter_car_to_var(char);
 /* évaluer l'ASA et retourner la valeur de l'expression */
-int inter_eval(struct inter*, struct ast_node*);
+int* inter_eval(struct inter*, struct ast_node*);
+/* obtenir la valeur d'une variable */
+int* inter_get_var(struct inter *vm, char var);
+/* modifier la valeur d'une variable */
+void inter_set_var(struct inter *vm, char var, int val);
+/* supprimer la valeur d'une variable */
+void inter_del_var(struct inter* vm, char var);
 /* imprimer la valeur de toutes les variables */
 void inter_print_vars(struct inter*);
 
@@ -589,25 +597,29 @@ struct ast_parse_result ast_parse(const char* text) {
     return result;
 }
 
-const char* ast_parse_err_msg(enum ast_parse_err err) {
+void ast_parse_err_print_msg(enum ast_parse_err err) {
     switch (err) {
         case AST_PARSE_ERR_OK:
-            return NULL;
+            break;
         case AST_PARSE_ERR_ALLOC:
-            return "Impossible d'allouer la mémoire nécessaire.";
+            puts("Impossible d'allouer la mémoire nécessaire.");
+            break;
         case AST_PARSE_ERR_VARNAME:
-            return "Les noms de variables doivent être d'un seul caractère entre a et z.";
+            puts("Les noms de variables doivent être d'un seul caractère entre a et z.");
+            break;
         case AST_PARSE_ERR_MISSING_VARNAME:
-            return "Nom de variable manquant dans l'assignation.";
+            puts("Nom de variable manquant dans l'assignation.");
+            break;
         case AST_PARSE_ERR_TOKEN:
-            return "La ligne contient un caractère invalide.";
+            puts("La ligne contient un caractère invalide.");
+            break;
         case AST_PARSE_ERR_TOO_MANY_EXPR:
-            return "La ligne entrée contient plus qu'une expression.";
+            puts("La ligne entrée contient plus qu'une expression.");
+            break;
         case AST_PARSE_ERR_TOO_LITTLE_OPER:
-            return "L'opérateur nécessite plus d'opérandes.";
+            puts("L'opérateur nécessite plus d'opérandes.");
+            break;
     }
-
-    return NULL;
 }
 
 void ast_node_free(struct ast_node *node) {
@@ -631,43 +643,88 @@ void ast_node_free(struct ast_node *node) {
     free(node);
 }
 
-int inter_eval(struct inter *vm, struct ast_node *node) {
-    int val;
+inline int inter_car_to_var(char var) {
+    return var - 'a';
+}
+
+int* inter_eval(struct inter *vm, struct ast_node *node) {
+    int *val, *op1, *op2;
+    /* TODO: fuites de mémoire, utiliser un refcount */
 
     switch (node->kind) {
         case AST_NODE_KIND_ASSIGN:
-            val = inter_eval(vm, node->assign->val);
-            vm->vars[node->assign->var - 'a'] = val;
+            /* si la prochaine valeur est une assignation à zéro, un supprime la valeur */
+            if (node->assign->val->kind == AST_NODE_KIND_NUM && node->assign->val->num->val == 0) {
+                inter_del_var(vm, node->assign->var);
+                val = 0;
+            } else {
+                val = inter_eval(vm, node->assign->val);
+                if (val == NULL) return NULL;
+                inter_set_var(vm, node->assign->var, *val);
+            }
             return val;
         case AST_NODE_KIND_USE:
-            return vm->vars[node->use->var - 'a'];
+            val = inter_get_var(vm, node->assign->var);
+            if (val == NULL) {
+                printf("La variable '%c' n'a pas de valeur.\n", node->assign->var);
+            }
+            return val;
         case AST_NODE_KIND_NUM:
-            return node->num->val;
+            val = malloc(sizeof(int));
+            *val = node->num->val;
+            return val;
         case AST_NODE_KIND_OPER:
+            op1 = inter_eval(vm, node->oper->op1);
+            op2 = inter_eval(vm, node->oper->op2);
+            if (op1 == NULL || op2 == NULL) return NULL;
+            val = malloc(sizeof(int));
+
             switch (node->oper->kind) {
                 // TODO: use big num
                 case AST_OPER_KIND_ADD:
-                    return inter_eval(vm, node->oper->op1) + inter_eval(vm, node->oper->op2);
+                    *val = *op1 + *op2;
                 case AST_OPER_KIND_SUB:
-                    return inter_eval(vm, node->oper->op1) - inter_eval(vm, node->oper->op2);
+                    *val = *op1 - *op2;
                 case AST_OPER_KIND_MUL:
-                    return inter_eval(vm, node->oper->op1) * inter_eval(vm, node->oper->op2);
+                    *val = *op1 * *op2;
             }
+
+            return val;
     }
 
     return 0;
 }
 
+int* inter_get_var(struct inter *vm, char var) {
+    return vm->vars[inter_car_to_var(var)];
+}
+
+void inter_set_var(struct inter *vm, char var, int val) {
+    int index = inter_car_to_var(var);
+    if (vm->vars[index] == NULL) {
+        vm->vars[index] = malloc(sizeof(int));
+    }
+    *vm->vars[index] = val;
+}
+
+void inter_del_var(struct inter* vm, char var) {
+    /* TODO: decrement refcount of bignum */
+    int index = inter_car_to_var(var);
+    if (vm->vars[index] != NULL) {
+        free(vm->vars[index]);
+    }
+    vm->vars[index] = NULL;
+}
+
 void inter_print_vars(struct inter *vm) {
     int i;
     for (i = 0; i < 26; i++) {
-        printf("%c = %d\n", i + 'a', vm->vars[i]);
+        printf("%c = %d\n", i + 'a', *vm->vars[i]);
     }
 }
 
 int main(int argc, char **argv) {
-    int val, car;
-    const char *msg;
+    int *val, car;
     struct inter vm;
     struct charbuff* cb;
     struct ast_parse_result result;
@@ -684,11 +741,12 @@ int main(int argc, char **argv) {
 
                 if (result.err == AST_PARSE_ERR_OK) {
                     val = inter_eval(&vm, result.node);
+                    if (val != NULL) {
+                        printf("%d\n", *val);
+                    }
                     ast_node_free(result.node);
-                    printf("%d\n", val);
                 } else {
-                    msg = ast_parse_err_msg(result.err);
-                    if (msg != NULL) printf("%s\n", msg);
+                    ast_parse_err_print_msg(result.err);
                 }
 
                 charbuff_clear(cb);
