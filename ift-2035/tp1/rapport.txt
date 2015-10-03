@@ -1,0 +1,22 @@
+2. b) comment se fait l’analyse de chaque ligne et le calcul de la réponse
+
+Les caractères sont lus un par un à l'aide de `getchar`. Si le caractère est `EOF`, on quitte la
+boucle de lecture, on libère la mémoire utilisée et on laisse l'application terminer. Si le caractère
+n'est pas un saut de ligne, ajouter le caractère au `charbuff` avec la fonction `charbuff_push`.
+Si le caractère est un saut de ligne, on envoit l'accumulation de caractères du `charbuff` à la
+fonction `ast_parse`.
+
+Le `tokenizer` extrait les éléments important de la ligne en divisant sur les espaces. Il se charge
+aussi d'ignorer les espaces superflus. La fonction `ast_parse` analyse les éléments extraits par le
+`tokenizer` et produit un arbre de syntaxe abstraite. Elle utilise une pile pour empiler les
+opérandes, et en fonction de l'arité du prochain élément désempilera le nombre d'opérandes nécessaire.
+Un nouveau noeud sera créé et empilé en fonction du type d'élément. Si le nombre d'opérandes requises
+n'est pas disponible, une erreur est détectée. Lorsque tous les éléments on étés analysés, on
+désempile le dernier élément de la pile, on signale qu'il n'y a pas d'erreur et on obtient
+l'arbre complet.
+
+Ensuite, on vérifie si `ast_parse` a retourné une erreur. Si c'est le cas, on affiche un message
+approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction `inter_eval` qui évaluera
+l'expression. L'interprète parcourt l'arbre avec un algorithme récursif, effectue les opérations
+et maintient la liste des variables. À la fin, il retourne la valeur de l'expression donnée et
+le nombre est affiché à l'écran par la boucle.
