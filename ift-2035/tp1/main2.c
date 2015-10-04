@@ -493,7 +493,6 @@ struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, st
 
 struct ast_parse_result ast_parse(const char* text) {
     char car;
-    enum ast_oper_kind okind;
     struct ast_parse_result result;
     struct ast_node *node, *new, *op1, *op2;
     struct stack *nodes;
@@ -504,6 +503,7 @@ struct ast_parse_result ast_parse(const char* text) {
     nodes = stack_new(4);
     tkzer = tokenizer_new(text);
     result.err = AST_PARSE_ERR_OK;
+    new = NULL;
 
     while (tokenizer_next(tkzer, &tok)) {
         car = tok.text[0];
@@ -559,17 +559,16 @@ struct ast_parse_result ast_parse(const char* text) {
             /* détecter l'opérateur */
             switch (car) {
                 case '+':
-                    okind = AST_OPER_KIND_ADD;
+                    new = ast_node_oper(AST_OPER_KIND_ADD, op1, op2);
                     break;
                 case '-':
-                    okind = AST_OPER_KIND_SUB;
+                    new = ast_node_oper(AST_OPER_KIND_SUB, op1, op2);
                     break;
                 case '*':
-                    okind = AST_OPER_KIND_MUL;
+                    new = ast_node_oper(AST_OPER_KIND_MUL, op1, op2);
                     break;
             }
 
-            new = ast_node_oper(okind, op1, op2);
             stack_push(nodes, new);
         } else {
             result.err = AST_PARSE_ERR_TOKEN;
