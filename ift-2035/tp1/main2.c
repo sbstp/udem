@@ -722,7 +722,9 @@ void inter_del_var(struct inter* vm, char var) {
 void inter_print_vars(struct inter *vm) {
     int i;
     for (i = 0; i < 26; i++) {
-        printf("%c = %d\n", i + 'a', *vm->vars[i]);
+        if (vm->vars[i] != NULL) {
+            printf("%c = %d\n", i + 'a', *vm->vars[i]);
+        }
     }
 }
 
@@ -739,7 +741,9 @@ int main(int argc, char **argv) {
     while ((car = getchar()) != EOF) {
         if (car == '\r') continue;
         if (car == '\n') {
-            if (cb->len > 0) {
+            if (strcmp(cb->buff, "vars") == 0) {
+                inter_print_vars(&vm);
+            } else if (cb->len > 0) {
                 result = ast_parse(cb->buff);
 
                 if (result.err == AST_PARSE_ERR_OK) {
@@ -751,9 +755,8 @@ int main(int argc, char **argv) {
                 } else {
                     ast_parse_err_print_msg(result.err);
                 }
-
-                charbuff_clear(cb);
             }
+            charbuff_clear(cb);
             printf("> ");
         } else {
             charbuff_push(cb, car);
