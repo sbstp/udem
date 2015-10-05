@@ -95,6 +95,20 @@ struct ast_parse_result {
     struct ast_node *node;
 };
 
+enum inter_eval_err {
+    INTER_EVAL_ERR_OK,
+    INTER_EVAL_ERR_ALLOC,
+    INTER_EVAL_ERR_UNDEF_VAR,
+};
+
+struct inter_eval_result {
+    enum inter_eval_err err;
+    union {
+        char var;
+        struct num *val;
+    };
+};
+
 struct inter {
     struct num *vars[26];
 };
@@ -170,13 +184,11 @@ void ast_node_free(struct ast_node*);
 /* convertit un nom de variable en index */
 int inter_car_to_var(char);
 /* évaluer l'ASA et retourner la valeur de l'expression */
-struct num* inter_eval(struct inter*, struct ast_node*);
+struct inter_eval_result inter_eval(struct inter*, struct ast_node*);
 /* obtenir la valeur d'une variable */
 struct num* inter_get_var(struct inter *vm, char var);
 /* modifier la valeur d'une variable */
 void inter_set_var(struct inter *vm, char var, struct num*);
-/* supprimer la valeur d'une variable */
-void inter_del_var(struct inter* vm, char var);
 /* imprimer la valeur de toutes les variables */
 void inter_print_vars(struct inter*);
 /* libérer l'espace utilisé par les variables */
@@ -319,7 +331,6 @@ bool charbuff_push(struct charbuff *cb, char c) {
         newcap = cb->cap * 2;
         buff = realloc(cb->buff, sizeof(char) * newcap + 1);
         if (buff == NULL) {
-            charbuff_free(cb); /* TODO: don't free */
             return false;
         }
         cb->cap = newcap;
@@ -392,10 +403,18 @@ struct tokenizer* tokenizer_new(const char *src) {
     struct tokenizer *tkzer;
 
     tkzer = malloc(sizeof(struct tokenizer));
+    if (tkzer == NULL) return NULL;
+
     tkzer->pos = 0;
     tkzer->len = strlen(src);
     tkzer->src = src;
-    tkzer->cb = charbuff_new(16);
+    /* en créant un charbuff de la taille de src, on s'assure
+     * qu'il n'y aura pas de réallocation dans tokenizer_next. */
+    tkzer->cb = charbuff_new(tkzer->len);
+    if (tkzer->cb == NULL) {
+        free(tkzer);
+        return NULL;
+    }
 
     return tkzer;
 }
@@ -507,11 +526,13 @@ struct ast_parse_result ast_parse(const char* text) {
             }
             /* nom de variable manquant */
             if (tok.len == 1) {
+                ast_node_free(node);
                 result.err = AST_PARSE_ERR_MISSING_VARNAME;
                 break;
             }
             /* le nom de variable est trop long */
             if (tok.len > 2) {
+                ast_node_free(node);
                 result.err = AST_PARSE_ERR_VARNAME;
                 break;
             }
@@ -541,7 +562,7 @@ struct ast_parse_result ast_parse(const char* text) {
             /* obtenir la première opérande, erreur si il n'y en a pas */
             op1 = stack_pop(nodes);
             if (op1 == NULL) {
-                free(op2);
+                ast_node_free(op2);
                 result.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
                 break;
             }
@@ -640,38 +661,37 @@ inline int inter_car_to_var(char var) {
     return var - 'a';
 }
 
-struct num* inter_eval(struct inter *vm, struct ast_node *node) {
+struct inter_eval_result inter_eval(struct inter *vm, struct ast_node *node) {
     struct num *val, *op1, *op2;
+    struct inter_eval_result res;
 
     switch (node->kind) {
         case AST_NODE_KIND_ASSIGN:
-            /* si il s'agit une assignation à zéro, un supprime la valeur */
-            if (node->assign->val->kind == AST_NODE_KIND_NUM && num_is_zero(node->assign->val->num->val)) {
-                inter_del_var(vm, node->assign->var);
-                /* la valeur produite est zéro */
-                val = node->assign->val->num->val;
-                num_incref(val);
-            } else {
-                val = inter_eval(vm, node->assign->val);
-                if (val == NULL) return NULL;
-                inter_set_var(vm, node->assign->var, val);
-            }
-            return val;
+            res = inter_eval(vm, node->assign->val);
+            if (res.err != INTER_EVAL_ERR_OK) return res;
+            inter_set_var(vm, node->assign->var, res.val);
+            val = res.val;
+            break;
         case AST_NODE_KIND_USE:
             val = inter_get_var(vm, node->assign->var);
             if (val == NULL) {
-                printf("La variable '%c' n'a pas de valeur.\n", node->assign->var);
-                return NULL;
+                res.err = INTER_EVAL_ERR_UNDEF_VAR;
+                res.var = node->assign->var;
+                return res;
             }
-            return val;
+            break;
         case AST_NODE_KIND_NUM:
             val = node->num->val;
             num_incref(val);
-            return val;
+            break;
         case AST_NODE_KIND_OPER:
-            op1 = inter_eval(vm, node->oper->op1);
-            op2 = inter_eval(vm, node->oper->op2);
-            if (op1 == NULL || op2 == NULL) return NULL;
+            res = inter_eval(vm, node->oper->op1);
+            if (res.err != INTER_EVAL_ERR_OK) return res;
+            op1 = res.val;
+
+            res = inter_eval(vm, node->oper->op2);
+            if (res.err != INTER_EVAL_ERR_OK) return res;
+            op2 = res.val;
 
             switch (node->oper->kind) {
                 case AST_OPER_KIND_ADD:
@@ -687,14 +707,22 @@ struct num* inter_eval(struct inter *vm, struct ast_node *node) {
                     abort();
             }
 
+            /* erreur dans l'allocation du nombre */
+            if (val == NULL) {
+                res.err = INTER_EVAL_ERR_ALLOC;
+                return res;
+            }
+
             num_decref(op1);
             num_decref(op2);
-            return val;
+            break;
         default:
             abort();
     }
 
-    return 0;
+    res.err = INTER_EVAL_ERR_OK;
+    res.val = val;
+    return res;
 }
 
 struct num* inter_get_var(struct inter *vm, char var) {
@@ -710,16 +738,12 @@ struct num* inter_get_var(struct inter *vm, char var) {
 
 void inter_set_var(struct inter *vm, char var, struct num *val) {
     int index = inter_car_to_var(var);
-    num_incref(val);
-    vm->vars[index] = val;
-}
-
-void inter_del_var(struct inter* vm, char var) {
-    int index = inter_car_to_var(var);
+    /* si la variable contient déjà une valeur */
     if (vm->vars[index] != NULL) {
         num_decref(vm->vars[index]);
-        vm->vars[index] = NULL;
     }
+    num_incref(val);
+    vm->vars[index] = val;
 }
 
 void inter_print_vars(struct inter *vm) {
@@ -742,10 +766,10 @@ void inter_cleanup(struct inter *vm) {
 
 int main(int argc, char **argv) {
     int car;
-    struct num *val;
     struct inter vm;
     struct charbuff* cb;
-    struct ast_parse_result result;
+    struct ast_parse_result pres;
+    struct inter_eval_result eres;
 
     memset(&vm, 0, sizeof(struct inter));
     cb = charbuff_new(32);
@@ -759,21 +783,26 @@ int main(int argc, char **argv) {
                 inter_print_vars(&vm);
             /* sinon on essaie d'analyser la chaîne de caractères */
             } else if (cb->len > 0) {
-                result = ast_parse(cb->buff);
+                pres = ast_parse(cb->buff);
 
-                /* on regarde si le result est un erreur ou non */
-                if (result.err == AST_PARSE_ERR_OK) {
-                    val = inter_eval(&vm, result.node);
-                    /* TODO: malloc error vs variable error */
-                    if (val != NULL) {
-                        num_print(val);
+                /* on regarde si le résultat est un erreur ou non */
+                /* TODO: malloc error */
+                if (pres.err == AST_PARSE_ERR_OK) {
+                    eres = inter_eval(&vm, pres.node);
+                    /* on regarde si le résultat est un erreur ou non */
+                    /* TODO: malloc error */
+                    if (eres.err == INTER_EVAL_ERR_OK) {
+                        num_print(eres.val);
+                        /* on décrémente le nombre retourné */
+                        num_decref(eres.val);
+                    } else if (eres.err == INTER_EVAL_ERR_UNDEF_VAR) {
+                        printf("La variable '%c' n'a pas de valeur.\n", eres.var);
                     }
-                    /* on décrémente le nombre retourné */
-                    num_decref(val);
+
                     /* on libère l'espace utilisé par l'ASA */
-                    ast_node_free(result.node);
+                    ast_node_free(pres.node);
                 } else {
-                    ast_parse_err_print_msg(result.err);
+                    ast_parse_err_print_msg(pres.err);
                 }
             }
             /* on vide le charbuff */
