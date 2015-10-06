@@ -92,7 +92,10 @@ struct ast_node {
 
 struct ast_parse_result {
     enum ast_parse_err err;
-    struct ast_node *node;
+    union {
+        char car;
+        struct ast_node *node;
+    };
 };
 
 enum inter_eval_err {
@@ -177,7 +180,7 @@ struct ast_node* ast_node_oper(enum ast_oper_kind, struct ast_node*, struct ast_
 /* analyser la chaîne de caractères et construire l'ASA */
 struct ast_parse_result ast_parse(const char*);
 /* obtenir un approprié message pour l'erreur donnée */
-void ast_parse_err_print_msg(enum ast_parse_err);
+void ast_parse_err_print_msg(struct ast_parse_result);
 /* libérer la mémoire utilisée par l'ASA */
 void ast_node_free(struct ast_node*);
 
@@ -221,6 +224,7 @@ struct num* num_from_str(const char *text) {
 
     n = malloc(sizeof(struct num));
     if (n == NULL) return NULL;
+
     n->val = atoi(text);
     n->refcount = 1;
     return n;
@@ -262,8 +266,10 @@ struct num* num_from_str(const char *text) {
 
 struct num* num_add(struct num *a, struct num *b) {
     struct num *n;
+
     n = malloc(sizeof(struct num));
     if (n == NULL) return NULL;
+
     n->val = a->val + b->val;
     n->refcount = 1;
     return n;
@@ -271,8 +277,10 @@ struct num* num_add(struct num *a, struct num *b) {
 
 struct num* num_sub(struct num *a, struct num *b) {
     struct num *n;
+
     n = malloc(sizeof(struct num));
     if (n == NULL) return NULL;
+
     n->val = a->val - b->val;
     n->refcount = 1;
     return n;
@@ -280,8 +288,10 @@ struct num* num_sub(struct num *a, struct num *b) {
 
 struct num* num_mul(struct num *a, struct num *b) {
     struct num *n;
+
     n = malloc(sizeof(struct num));
     if (n == NULL) return NULL;
+
     n->val = a->val * b->val;
     n->refcount = 1;
     return n;
@@ -455,8 +465,15 @@ struct ast_node* ast_node_assign(char var, struct ast_node *val) {
     struct ast_node *node;
 
     node = malloc(sizeof(struct ast_node));
-    node->kind = AST_NODE_KIND_ASSIGN;
+    if (node == NULL) return NULL;
+
     node->assign = malloc(sizeof(struct ast_node_assign));
+    if (node->assign == NULL) {
+        free(node);
+        return NULL;
+    }
+
+    node->kind = AST_NODE_KIND_ASSIGN;
     node->assign->var = var;
     node->assign->val = val;
 
@@ -467,8 +484,15 @@ struct ast_node* ast_node_use(char var) {
     struct ast_node *node;
 
     node = malloc(sizeof(struct ast_node));
-    node->kind = AST_NODE_KIND_USE;
+    if (node == NULL) return NULL;
+
     node->use = malloc(sizeof(struct ast_node_use));
+    if (node->use == NULL) {
+        free(node);
+        return NULL;
+    }
+
+    node->kind = AST_NODE_KIND_USE;
     node->use->var = var;
 
     return node;
@@ -478,10 +502,22 @@ struct ast_node* ast_node_num(const char* source) {
     struct ast_node *node;
 
     node = malloc(sizeof(struct ast_node));
-    node->kind = AST_NODE_KIND_NUM;
-    node->use = malloc(sizeof(struct ast_node));
+    if (node == NULL) return NULL;
+
+    node->num = malloc(sizeof(struct ast_node_num));
+    if (node->num == NULL) {
+        free(node);
+        return NULL;
+    }
+
     node->num->val = num_from_str(source);
-    /* TODO malloc fail */
+    if (node->num->val == NULL) {
+        free(node->num);
+        free(node);
+        return NULL;
+    }
+
+    node->kind = AST_NODE_KIND_NUM;
 
     return node;
 }
@@ -490,8 +526,15 @@ struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, st
     struct ast_node *node;
 
     node = malloc(sizeof(struct ast_node));
-    node->kind = AST_NODE_KIND_OPER;
+    if (node == NULL) return NULL;
+
     node->oper = malloc(sizeof(struct ast_node_oper));
+    if (node == NULL) {
+        free(node);
+        return NULL;
+    }
+
+    node->kind = AST_NODE_KIND_OPER;
     node->oper->kind = kind;
     node->oper->op1 = op1;
     node->oper->op2 = op2;
@@ -501,16 +544,26 @@ struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, st
 
 struct ast_parse_result ast_parse(const char* text) {
     char car;
-    struct ast_parse_result result;
+    struct ast_parse_result res;
     struct ast_node *node, *new, *op1, *op2;
     struct stack *nodes;
     struct tokenizer *tkzer;
     struct token tok;
 
-    /* TODO: malloc errors */
-    nodes = stack_new(4);
+    nodes = stack_new(8);
+    if (nodes == NULL) {
+        res.err = AST_PARSE_ERR_ALLOC;
+        return res;
+    }
+
     tkzer = tokenizer_new(text);
-    result.err = AST_PARSE_ERR_OK;
+    if (tkzer == NULL) {
+        free(nodes);
+        res.err = AST_PARSE_ERR_ALLOC;
+        return res;
+    }
+
+    res.err = AST_PARSE_ERR_OK;
     new = NULL;
 
     while (tokenizer_next(tkzer, &tok)) {
@@ -521,49 +574,46 @@ struct ast_parse_result ast_parse(const char* text) {
 
             /* il n'y a rien à assigner */
             if (node == NULL) {
-                result.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
+                res.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
                 break;
             }
             /* nom de variable manquant */
             if (tok.len == 1) {
                 ast_node_free(node);
-                result.err = AST_PARSE_ERR_MISSING_VARNAME;
+                res.err = AST_PARSE_ERR_MISSING_VARNAME;
                 break;
             }
             /* le nom de variable est trop long */
             if (tok.len > 2) {
                 ast_node_free(node);
-                result.err = AST_PARSE_ERR_VARNAME;
+                res.err = AST_PARSE_ERR_VARNAME;
                 break;
             }
 
             new = ast_node_assign(tok.text[1], node);
-            stack_push(nodes, new);
         } else if (is_letter(car)) {
             /* use */
             if (tok.len > 1) {
-                result.err = AST_PARSE_ERR_VARNAME;
+                res.err = AST_PARSE_ERR_VARNAME;
                 break;
             }
             new = ast_node_use(car);
-            stack_push(nodes, new);
         } else if (is_digit(car)) {
             /* num */
             /* TODO validate digit */
             new = ast_node_num(tok.text);
-            stack_push(nodes, new);
         } else if (car == '+' || car == '-' || car == '*') {
             /* obtenir la deuxieme opérande, erreur si il n'y en a pas */
             op2 = stack_pop(nodes);
             if (op2 == NULL) {
-                result.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
+                res.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
                 break;
             }
             /* obtenir la première opérande, erreur si il n'y en a pas */
             op1 = stack_pop(nodes);
             if (op1 == NULL) {
                 ast_node_free(op2);
-                result.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
+                res.err = AST_PARSE_ERR_TOO_LITTLE_OPER;
                 break;
             }
             /* détecter l'opérateur */
@@ -580,22 +630,34 @@ struct ast_parse_result ast_parse(const char* text) {
                 default:
                     abort();
             }
-
-            stack_push(nodes, new);
         } else {
-            result.err = AST_PARSE_ERR_TOKEN;
+            res.err = AST_PARSE_ERR_TOKEN;
+            res.car = car;
+            break;
+        }
+
+        /* erreur d'allocation */
+        if (new == NULL) {
+            res.err = AST_PARSE_ERR_ALLOC;
+            break;
+        }
+
+        /* erreur de réallocation */
+        if (!stack_push(nodes, new)) {
+            ast_node_free(new);
+            res.err = AST_PARSE_ERR_ALLOC;
             break;
         }
     }
 
     /* si il reste plus qu'un item dans le stack, c'est qu'il y a plusieurs expressions */
-    if (nodes->len > 1) {
-        result.err = AST_PARSE_ERR_TOO_MANY_EXPR;
+    if (res.err == AST_PARSE_ERR_OK && nodes->len > 1) {
+        res.err = AST_PARSE_ERR_TOO_MANY_EXPR;
     }
 
     /* pas d'erreurs */
-    if (result.err == AST_PARSE_ERR_OK) {
-        result.node = stack_pop(nodes);
+    if (res.err == AST_PARSE_ERR_OK) {
+        res.node = stack_pop(nodes);
     } else {
         /* si il y a eu une erreur, on libère les noeuds restants */
         while ((node = stack_pop(nodes)) != NULL) {
@@ -605,11 +667,11 @@ struct ast_parse_result ast_parse(const char* text) {
 
     stack_free(nodes);
     tokenizer_free(tkzer);
-    return result;
+    return res;
 }
 
-void ast_parse_err_print_msg(enum ast_parse_err err) {
-    switch (err) {
+void ast_parse_err_print_msg(struct ast_parse_result res) {
+    switch (res.err) {
         case AST_PARSE_ERR_OK:
             break;
         case AST_PARSE_ERR_ALLOC:
@@ -622,7 +684,7 @@ void ast_parse_err_print_msg(enum ast_parse_err err) {
             puts("Nom de variable manquant dans l'assignation.");
             break;
         case AST_PARSE_ERR_TOKEN:
-            puts("La ligne contient un caractère invalide.");
+            printf("La ligne contient un caractère invalide: %c.\n", res.car);
             break;
         case AST_PARSE_ERR_TOO_MANY_EXPR:
             puts("La ligne entrée contient plus qu'une expression.");
@@ -802,13 +864,14 @@ int main(int argc, char **argv) {
                     /* on libère l'espace utilisé par l'ASA */
                     ast_node_free(pres.node);
                 } else {
-                    ast_parse_err_print_msg(pres.err);
+                    ast_parse_err_print_msg(pres);
                 }
             }
             /* on vide le charbuff */
             charbuff_clear(cb);
             printf("> ");
         } else {
+            /* TODO: malloc error */
             charbuff_push(cb, car);
         }
     }
