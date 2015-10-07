@@ -1,3 +1,13 @@
+/*
+ * IFT-2035: Travail pratique 1
+ *
+ * Auteurs:
+ *   Simon Bernier St-Pierre
+ *
+ * "Repository" Git: https://github.com/sbstp/udem/tree/master/ift-2035/tp1
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
