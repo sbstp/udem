@@ -179,8 +179,8 @@ struct ast_node* ast_node_num(const char*);
 struct ast_node* ast_node_oper(enum ast_oper_kind, struct ast_node*, struct ast_node*);
 /* analyser la chaîne de caractères et construire l'ASA */
 struct ast_parse_result ast_parse(const char*);
-/* obtenir un approprié message pour l'erreur donnée */
-void ast_parse_err_print_msg(struct ast_parse_result);
+/* imprimer un message approprié pour l'erreur */
+void ast_parse_err_print(struct ast_parse_result);
 /* libérer la mémoire utilisée par l'ASA */
 void ast_node_free(struct ast_node*);
 
@@ -194,6 +194,8 @@ struct num* inter_get_var(struct inter *vm, char var);
 void inter_set_var(struct inter *vm, char var, struct num*);
 /* imprimer la valeur de toutes les variables */
 void inter_print_vars(struct inter*);
+/* imprimer un message approprié pour l'erreur */
+void inter_eval_err_print(struct inter_eval_result res);
 /* libérer l'espace utilisé par les variables */
 void inter_cleanup(struct inter*);
 
@@ -678,7 +680,7 @@ struct ast_parse_result ast_parse(const char* text) {
     return res;
 }
 
-void ast_parse_err_print_msg(struct ast_parse_result res) {
+void ast_parse_err_print(struct ast_parse_result res) {
     switch (res.err) {
         case AST_PARSE_ERR_OK:
             break;
@@ -700,6 +702,8 @@ void ast_parse_err_print_msg(struct ast_parse_result res) {
         case AST_PARSE_ERR_TOO_LITTLE_OPER:
             puts("L'opérateur nécessite plus d'opérandes.");
             break;
+        default:
+            abort();
     }
 }
 
@@ -825,6 +829,21 @@ void inter_print_vars(struct inter *vm) {
     }
 }
 
+void inter_eval_err_print(struct inter_eval_result res) {
+    switch (res.err) {
+        case INTER_EVAL_ERR_OK:
+            break;
+        case INTER_EVAL_ERR_ALLOC:
+            puts("Erreur d'allocation lors de l'évaluation de l'ASA.");
+            break;
+        case INTER_EVAL_ERR_UNDEF_VAR:
+            printf("La variable '%c' n'a pas de valeur.\n", res.var);
+            break;
+        default:
+            abort();
+    }
+}
+
 void inter_cleanup(struct inter *vm) {
     int i;
     for (i = 0; i < 26; i++) {
@@ -857,23 +876,23 @@ int main(int argc, char **argv) {
                 pres = ast_parse(cb->buff);
 
                 /* on regarde si le résultat est un erreur ou non */
-                /* TODO: malloc error */
                 if (pres.err == AST_PARSE_ERR_OK) {
                     eres = inter_eval(&vm, pres.node);
                     /* on regarde si le résultat est un erreur ou non */
-                    /* TODO: malloc error */
                     if (eres.err == INTER_EVAL_ERR_OK) {
                         num_print(eres.val);
                         /* on décrémente le nombre retourné */
                         num_decref(eres.val);
-                    } else if (eres.err == INTER_EVAL_ERR_UNDEF_VAR) {
-                        printf("La variable '%c' n'a pas de valeur.\n", eres.var);
+                    } else {
+                        /* si il y a une erreur, on affiche un message */
+                        inter_eval_err_print(eres);
                     }
 
                     /* on libère l'espace utilisé par l'ASA */
                     ast_node_free(pres.node);
                 } else {
-                    ast_parse_err_print_msg(pres);
+                    /* si il y a une erreur, on affiche un message */
+                    ast_parse_err_print(pres);
                 }
             }
             /* on vide le charbuff */
