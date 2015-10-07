@@ -529,7 +529,7 @@ struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, st
     if (node == NULL) return NULL;
 
     node->oper = malloc(sizeof(struct ast_node_oper));
-    if (node == NULL) {
+    if (node->oper == NULL) {
         free(node);
         return NULL;
     }
@@ -558,7 +558,7 @@ struct ast_parse_result ast_parse(const char* text) {
 
     tkzer = tokenizer_new(text);
     if (tkzer == NULL) {
-        free(nodes);
+        stack_free(nodes);
         res.err = AST_PARSE_ERR_ALLOC;
         return res;
     }
@@ -591,6 +591,9 @@ struct ast_parse_result ast_parse(const char* text) {
             }
 
             new = ast_node_assign(tok.text[1], node);
+            if (new == NULL) {
+                ast_node_free(node);
+            }
         } else if (is_letter(car)) {
             /* use */
             if (tok.len > 1) {
@@ -629,6 +632,11 @@ struct ast_parse_result ast_parse(const char* text) {
                     break;
                 default:
                     abort();
+            }
+
+            if (new == NULL) {
+                ast_node_free(op1);
+                ast_node_free(op2);
             }
         } else {
             res.err = AST_PARSE_ERR_TOKEN;
@@ -834,6 +842,7 @@ int main(int argc, char **argv) {
     struct inter_eval_result eres;
 
     memset(&vm, 0, sizeof(struct inter));
+    /* TODO: malloc error */
     cb = charbuff_new(32);
 
     printf("> ");
