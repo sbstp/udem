@@ -647,7 +647,7 @@ void ast_parse_err_print(struct ast_parse_result res) {
         case AST_PARSE_ERR_OK:
             break;
         case AST_PARSE_ERR_ALLOC:
-            puts("Impossible d'allouer la mémoire nécessaire.");
+            puts("Erreur d'allocation lors de la construction de l'ASA.");
             break;
         case AST_PARSE_ERR_VARNAME:
             puts("Les noms de variables doivent être d'un seul caractère entre a et z.");
@@ -872,6 +872,7 @@ int main(int argc, char **argv) {
             continue;
         /* EOF atteint */
         } else if (rres.err == READ_LINE_ERR_EOF) {
+            putchar('\n');
             break;
         }
         /* aucune erreur */
