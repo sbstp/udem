@@ -15,6 +15,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+void* maybe_malloc(size_t len, int line) {
+    if ((rand() % 100) < 1) {
+        printf("Bad alloc at %d\n", line);
+        return NULL;
+    }
+    return malloc(len);
+}
+
+void* maybe_realloc(void *p, size_t len, int line) {
+    if ((rand() % 100) < 1) {
+        printf("Bad realloc at %d\n", line);
+        return NULL;
+    }
+    return realloc(p, len);
+}
+
+#define malloc(len) maybe_malloc(len, __LINE__);
+
+#define realloc(p, len) maybe_realloc(p, len, __LINE__);
 
 typedef enum { false, true } bool;
 
@@ -1172,6 +1193,8 @@ int main(int argc, char **argv) {
     int len;
 
     memset(&vm, 0, sizeof(struct inter));
+    srand(time(NULL));
+
     for (;;) {
         printf("> ");
         rres = read_line();
