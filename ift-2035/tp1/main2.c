@@ -32,9 +32,10 @@ typedef struct num {
     struct digit *first;
 }Num;
 
-struct num {
-    int val;
-    int refcount;
+struct charbuff {
+    int cap;
+    int len;
+    char* buff;
 };
 
 struct stack {
@@ -49,10 +50,10 @@ struct token {
 };
 
 struct tokenizer {
-    const char *src;
+    const char* src;
     size_t pos;
     size_t len;
-    char *buff;
+    struct charbuff* cb;
 };
 
 enum ast_node_kind {
@@ -130,17 +131,6 @@ struct inter_eval_result {
 };
 
 struct inter {
-};
-
-enum read_line_err {
-    READ_LINE_ERR_OK,
-    READ_LINE_ERR_ALLOC,
-    READ_LINE_ERR_EOF,
-};
-
-struct read_line_result {
-    enum read_line_err err;
-    char* line;
     Num *vars[26];
 };
 
@@ -185,6 +175,15 @@ void dispose_Num(Num*);
 Digit* init_Digit(Figure*,Digit*);
 /*Initialise Digit*/
 void dispose_Digit(Digit*);
+
+/* créer un nouveau charbuff avec la capacitée donnée */
+struct charbuff* charbuff_new(int cap);
+/* ajouter un caractère et redimensionner au besoin */
+bool charbuff_push(struct charbuff*, char);
+/* disposer du texte contenu, mais sauvegarder l'espace mémoire  */
+void charbuff_clear(struct charbuff*);
+/* libérer la mémoire utilisé par le tampon */
+void charbuff_free(struct charbuff*);
 
 /* créer un nouvea stack avec la capacité donnée */
 struct stack* stack_new(int cap);
@@ -234,8 +233,6 @@ void inter_cleanup(struct inter*);
 /*libérer les chiffres constants*/
 void figures_cleanup();
 
-/* lire une ligne de stdin */
-struct read_line_result read_line();
 
 /* implémentation */
 
@@ -489,17 +486,52 @@ void num_print(Num *n) {
 		printf("%c", line[i]);
 }
 
+struct charbuff* charbuff_new(int cap) {
+    struct charbuff *cb;
 
+    cb = malloc(sizeof(struct charbuff));
+    if (cb == NULL) return NULL;
 
+    cb->cap = cap;
+    cb->len = 0;
 
+    cb->buff = malloc(sizeof(char) * cap + 1);
+    if (cb->buff == NULL) {
+        free(cb);
+        return NULL;
+    }
 
+    return cb;
 }
 
+bool charbuff_push(struct charbuff *cb, char c) {
+    int newcap;
+    char* buff;
 
+    if (cb->len >= cb->cap) {
+        newcap = cb->cap * 2;
+        buff = realloc(cb->buff, sizeof(char) * newcap + 1);
+        if (buff == NULL) {
+            return false;
+        }
+        cb->cap = newcap;
+        cb->buff = buff;
+    }
+
+    cb->buff[cb->len++] = c;
+    cb->buff[cb->len] = '\0';
+
+    return true;
 }
 
+void charbuff_clear(struct charbuff *cb) {
+    cb->buff[0] = '\0';
+    cb->len = 0;
 }
 
+void charbuff_free(struct charbuff *cb) {
+    free(cb->buff);
+    free(cb);
 }
 
 struct stack* stack_new(int cap) {
@@ -559,8 +591,8 @@ struct tokenizer* tokenizer_new(const char *src) {
     tkzer->src = src;
     /* en créant un charbuff de la taille de src, on s'assure
      * qu'il n'y aura pas de réallocation dans tokenizer_next. */
-    tkzer->buff = malloc(sizeof(char) * tkzer->len);
-    if (tkzer->buff == NULL) {
+    tkzer->cb = charbuff_new(tkzer->len);
+    if (tkzer->cb == NULL) {
         free(tkzer);
         return NULL;
     }
@@ -571,11 +603,11 @@ struct tokenizer* tokenizer_new(const char *src) {
 bool tokenizer_next(struct tokenizer* tkzer, struct token *tok) {
     char car;
     bool found_tok;
-    int idx = 0;
 
     if (tkzer->pos >= tkzer->len) return false;
 
     found_tok = false;
+    charbuff_clear(tkzer->cb);
     do {
         car = tkzer->src[tkzer->pos++];
         if (car == '\0') break;
@@ -584,20 +616,19 @@ bool tokenizer_next(struct tokenizer* tkzer, struct token *tok) {
             else continue;
         }
         found_tok = true;
-        tkzer->buff[idx++] = car;
+        charbuff_push(tkzer->cb, car);
     } while (true);
-    tkzer->buff[idx] = '\0';
 
     if (!found_tok) return false;
 
-    tok->len = idx;
-    tok->text = tkzer->buff;
+    tok->len = tkzer->cb->len;
+    tok->text = tkzer->cb->buff;
 
     return true;
 }
 
 void tokenizer_free(struct tokenizer *tkzer) {
-    free(tkzer->buff);
+    charbuff_free(tkzer->cb);
     free(tkzer);
 }
 
@@ -988,100 +1019,73 @@ void inter_cleanup(struct inter *vm) {
     }
 }
 
-struct read_line_result read_line() {
-    int len = 0;
-    int cap = 10;
-    char *buff, *tmp;
-    int car;
-    struct read_line_result res;
-
-    buff = malloc(cap + 1);
-    if (buff == NULL) {
-        res.err = READ_LINE_ERR_ALLOC;
-        return res;
-    }
-
-    while ((car = getchar()) != EOF) {
-        if (car == '\n') {
-            buff[len] = '\0';
-            res.err = READ_LINE_ERR_OK;
-            res.line = buff;
-            return res;
-        }
-
-        if (len >= cap) {
-            cap *= 2;
-            tmp = realloc(buff, cap + 1);
-            if (tmp == NULL) {
-                free(buff);
-                res.err = READ_LINE_ERR_ALLOC;
-                return res;
-            }
-            buff = tmp;
-        }
-        buff[len++] = car;
-    }
-
-    free(buff);
-    res.err = READ_LINE_ERR_EOF;
-    return res;
+void figures_cleanup() {
+	for (int i = 0; i < 10; i++)
+	{
+		if (__val[i] != NULL)
+		{
+			free(__val[i]);
+			__val[i] = NULL;
+		}
+	}
 }
 
 int main(int argc, char **argv) {
+    int car;
     struct inter vm;
-    struct read_line_result rres;
+    struct charbuff* cb;
     struct ast_parse_result pres;
     struct inter_eval_result eres;
-    int len;
 
-    memset(&vm, 0, sizeof(struct inter));
+	memset(&vm, 0, sizeof(struct inter));
+	/* TODO: malloc error */
+    cb = charbuff_new(32);
 
-    for (;;) {
-        printf("> ");
-        rres = read_line();
-        /* erreur d'allocation */
-        if (rres.err == READ_LINE_ERR_ALLOC) {
-            puts("Erreur d'allocation lors de la lecture de la ligne.");
-            continue;
-        /* EOF atteint */
-        } else if (rres.err == READ_LINE_ERR_EOF) {
-            break;
-        }
-        /* aucune erreur */
-        len = strlen(rres.line);
-        /* si le contenu de le ligne est égal à "vars", on imprime la liste des variables */
-        if (strcmp(rres.line, "vars") == 0) {
-            inter_print_vars(&vm);
-        /* sinon on essaie d'analyser la chaîne de caractères */
-        } else if (len > 0) {
-            pres = ast_parse(rres.line);
+    printf("> ");
+    while ((car = getchar()) != EOF) {
+        if (car == '\r') continue;
+        if (car == '\n') {
+            /* si le contenu du charbuff est égal à "vars", on imprime la liste des variables */
+            if (strcmp(cb->buff, "vars") == 0) {
+                inter_print_vars(&vm);
+            /* sinon on essaie d'analyser la chaîne de caractères */
+            } else if (cb->len > 0) {
+                pres = ast_parse(cb->buff);
 
-            /* on regarde si le résultat est un erreur ou non */
-            if (pres.err == AST_PARSE_ERR_OK) {
-                eres = inter_eval(&vm, pres.node);
                 /* on regarde si le résultat est un erreur ou non */
-                if (eres.err == INTER_EVAL_ERR_OK) {
-                    num_print(eres.val);
-                    /* on décrémente le nombre retourné */
-                    num_decref(eres.val);
+                if (pres.err == AST_PARSE_ERR_OK) {
+                    eres = inter_eval(&vm, pres.node);
+                    /* on regarde si le résultat est un erreur ou non */
+                    if (eres.err == INTER_EVAL_ERR_OK) {
+                        num_print(eres.val);
+                        /* on décrémente le nombre retourné */
+						dispose_Num(eres.val);
+						//TODO : Dispose Num if error
+                    } else {
+                        /* si il y a une erreur, on affiche un message */
+                        inter_eval_err_print(eres);
+                    }
+
+                    /* on libère l'espace utilisé par l'ASA */
+                    ast_node_free(pres.node);
                 } else {
                     /* si il y a une erreur, on affiche un message */
-                    inter_eval_err_print(eres);
+                    ast_parse_err_print(pres);
                 }
-
-                /* on libère l'espace utilisé par l'ASA */
-                ast_node_free(pres.node);
-            } else {
-                /* si il y a une erreur, on affiche un message */
-                ast_parse_err_print(pres);
             }
+            /* on vide le charbuff */
+            charbuff_clear(cb);
+			//printf("\n NumRef = %d, DigitRef = %d", dNum, dDigit);
+            printf("\n> ");
+        } else {
+            /* TODO: malloc error */
+            charbuff_push(cb, car);
         }
-        /* on libère l'espace utilisé par la ligne */
-        free(rres.line);
     }
 
     /* nettoyage final */
     inter_cleanup(&vm);
 	figures_cleanup();
+    charbuff_free(cb);
     return 0;
 }
