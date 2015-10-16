@@ -3,6 +3,7 @@
  *
  * Auteurs:
  *   Simon Bernier St-Pierre
+ *	 Kevin Belisle
  *
  * "Repository" Git: https://github.com/sbstp/udem/tree/master/ift-2035/tp1
  *
@@ -14,14 +15,24 @@
 
 typedef enum { false, true } bool;
 
+//Représente un chiffre de 0 à 9
+struct figure
+{
+	unsigned int val : 4;
+};
+
+//Variable globale : contient les chiffres constants 0-9
+static struct figure *__figures[10];
+
 struct digit {
-    int val;
-    struct digit *next;
+	struct figure *val;
+	struct digit *next;
 };
 
 struct num {
-    int val;
-    int refcount;
+	bool isNeg;
+	struct digit *first;
+	int refcount;
 };
 
 struct stack {
@@ -158,6 +169,18 @@ void num_print(struct num*);
 void num_incref(struct num*);
 /* décrémenter le compteur de référence et libérer la mémoire si nécessaire */
 void num_decref(struct num*);
+/*libérer Num*/
+struct num* init_Num(bool, struct digit*);
+/*Initialise Num*/
+void dispose_Num(struct num*);
+/*libérer Num*/
+struct digit* init_Digit(struct figure*, struct digit*);
+/*Initialise Digit*/
+void dispose_Digit(struct digit*);
+/*Obtenir le chiffre selon un entier*/
+struct figure* figure_from_int(int);
+/*Obtenir le chiffre selon une chai*/
+struct figure* figure_from_str(char);
 
 /* créer un nouvea stack avec la capacité donnée */
 struct stack* stack_new(int cap);
@@ -204,6 +227,8 @@ void inter_print_vars(struct inter*);
 void inter_eval_err_print(struct inter_eval_result res);
 /* libérer l'espace utilisé par les variables */
 void inter_cleanup(struct inter*);
+/*libérer les chiffres constants*/
+void figures_cleanup();
 
 /* lire une ligne de stdin */
 struct read_line_result read_line();
@@ -230,90 +255,153 @@ inline bool is_whitespace(char car) {
     return car == ' ' || car == '\t';
 }
 
+struct figure* figure_from_int(int val) {
+	if (__figures[val] == NULL)
+	{
+		struct figure *f = malloc(sizeof(struct figure));
+		if (f == NULL)
+			return NULL;
+		f->val = val;
+		__figures[val] = f;
+	}
+	return __figures[val];
+}
+struct figure* figure_from_str(char c) {
+	return figure_from_int(c - '0');
+}
 struct num* num_from_str(const char *text) {
-    struct num *n;
+	int i = strlen(text) - 1;
+	int end = 0;
+	bool isNeg = false;
+	if (text[0] == '-')
+	{
+		isNeg = true;
+		end++;
+	}
+	struct num* n = init_Num(isNeg, NULL);
+	if (n == NULL)
+	{
+		// TODO : Error Malloc
+		return NULL;
+	}
+	struct digit *prev, *d;
+	//initialiser le premier Digit
+	struct figure *f = figure_from_str(text[i]);
+	d = prev = init_Digit(f, NULL);
+	if (d == NULL)
+	{
+		// TODO : Error Malloc
+		dispose_Num(n);
+		return NULL;
+	}
+	n->first = d;
+	i--;
+	//initialiser le reste du Num, si necessaire
+	for (; i >= end; i--) {
+		f = figure_from_str(text[i]);
+		d = init_Digit(f, NULL);
+		if (d == NULL)
+		{
+			// TODO : Error Malloc
+			dispose_Num(n);
+			return NULL;
+		}
+		prev->next = d;
+		prev = d;
+	}
+	return n;
+}
 
-    n = malloc(sizeof(struct num));
-    if (n == NULL) return NULL;
-
-    n->val = atoi(text);
-    n->refcount = 1;
-    return n;
-    // int len, i, lo;
-    // struct num *n;
-    // struct digit *p, *d;
-    //
-    // len = strlen(text);
-    // p = NULL;
-    //
-    // n = malloc(sizeof(struct num));
-    // if (n == NULL) return NULL;
-    //
-    // /* si le nombre débute par '-', il est négatif */
-    // n->pos = text[0] != '-';
-    // n->len = 0;
-    // /* si il y a un signe '-', on arrête de copier avant 1 caractère plus tôt */
-    // lo = !n->pos;
-    //
-    // for (i = len - 1; i >= lo; i--) {
-    //     d = malloc(sizeof(struct digit));
-    //     /* si on arrive pas à allouer, on détruit tout ce qui a été alloué auparavant */
-    //     if (d == NULL) {
-    //         num_free(n);
-    //         return NULL;
-    //     }
-    //
-    //     d->val = car_to_val(text[i]);
-    //     n->len++;
-    //     if (p == NULL)
-    //         n->first = p = d;
-    //     else
-    //         p->next = d;
-    //     p = d;
-    // }
-    //
-    // return n;
+struct num* init_Num(bool isNeg, struct digit* first) {
+	struct num* n = malloc(sizeof(struct num));
+	if (n == NULL)
+	{
+		// TODO : Error Malloc
+		return NULL;
+	}
+	n->isNeg = isNeg;
+	n->first = first;
+	n->refcount = 1;
+	return n;
+}
+void dispose_Num(struct num* n) {
+	struct digit *d = n->first, *cur = NULL;
+	while (d != NULL) {
+		cur = d->next;
+		dispose_Digit(d);
+		d = cur;
+	}
+	free(n);
+}
+struct digit* init_Digit(struct figure* f, struct digit* next) {
+	struct digit* d = malloc(sizeof(struct digit));
+	if (d == NULL)
+	{
+		// TODO : Error Malloc
+		return NULL;
+	}
+	d->val = f;
+	d->next = next;
+	return d;
+}
+void dispose_Digit(struct digit* d) {
+	//Ne jamais libérer une figure, elles seront libérer à la fin.
+	//Le num est responsable de libérer la liste de digit
+	free(d);
 }
 
 struct num* num_add(struct num *a, struct num *b) {
-    struct num *n;
-
-    n = malloc(sizeof(struct num));
-    if (n == NULL) return NULL;
-
-    n->val = a->val + b->val;
-    n->refcount = 1;
-    return n;
+	//TODO : ADD
+	//Addition de block de grandeur 18 en utilisant long + long
+	//long_max value = 	9223372036854775807 > 10^19
+	return num_from_str("0");
 }
 
 struct num* num_sub(struct num *a, struct num *b) {
-    struct num *n;
-
-    n = malloc(sizeof(struct num));
-    if (n == NULL) return NULL;
-
-    n->val = a->val - b->val;
-    n->refcount = 1;
-    return n;
+	b->isNeg = ~b->isNeg;
+	Num *r = num_add(a, b);
+	b->isNeg = ~b->isNeg;
+	return r;
 }
 
 struct num* num_mul(struct num *a, struct num *b) {
-    struct num *n;
-
-    n = malloc(sizeof(struct num));
-    if (n == NULL) return NULL;
-
-    n->val = a->val * b->val;
-    n->refcount = 1;
-    return n;
+    //TODO : MUL
+	return num_from_str("0");
 }
 
 bool num_is_zero(struct num *n) {
-    return n->val == 0;
+    return n->first->val->val == 0 && n->first->next == NULL;
 }
 
 void num_print(struct num *n) {
-    printf("%d\n", n->val);
+	char *line = NULL, *tmp = NULL;
+	size_t size = 0, index = 0, buffer_size = 20;
+	char c = '\0';
+	struct digit *d = n->first;
+
+	while (d != NULL) {
+		c = d->val->val + '0';
+
+		/* Aggrandir le tableau si necessaire */
+		if (size <= index) {
+			size += buffer_size;
+			tmp = realloc(line, size);
+			if (!tmp) {
+				free(line);
+				line = NULL;
+				break;
+			}
+			line = tmp;
+		}
+
+		/* Actually store the thing. */
+		line[index++] = c;
+		d = d->next;
+	}
+	line[index++] = '\0';
+
+	for (int i = strlen(line) - 1; i >= 0; i--)
+		printf("%c", line[i]);
 }
 
 void num_incref(struct num *n) {
@@ -322,7 +410,7 @@ void num_incref(struct num *n) {
 
 void num_decref(struct num *n) {
     if (--n->refcount <= 0) {
-        free(n);
+        dispose_Num(n);
     }
 }
 
@@ -783,12 +871,13 @@ void inter_set_var(struct inter *vm, char var, struct num *val) {
 }
 
 void inter_print_vars(struct inter *vm) {
-    int i;
-    for (i = 0; i < 26; i++) {
-        if (vm->vars[i] != NULL) {
-            printf("%c = %d\n", i + 'a', vm->vars[i]->val);
-        }
-    }
+	int i;
+	for (i = 0; i < 26; i++) {
+		if (vm->vars[i] != NULL) {
+			num_print(vm->vars[i]);
+			printf(" = %d\n", i + 'a');
+		}
+	}
 }
 
 void inter_eval_err_print(struct inter_eval_result res) {
@@ -854,6 +943,17 @@ struct read_line_result read_line() {
     return res;
 }
 
+void figures_cleanup() {
+	for (int i = 0; i < 10; i++)
+	{
+		if (__figures[i] != NULL)
+		{
+			free(__figures[i]);
+			__figures[i] = NULL;
+		}
+	}
+}
+
 int main(int argc, char **argv) {
     struct inter vm;
     struct read_line_result rres;
@@ -862,7 +962,6 @@ int main(int argc, char **argv) {
     int len;
 
     memset(&vm, 0, sizeof(struct inter));
-
     for (;;) {
         printf("> ");
         rres = read_line();
@@ -906,9 +1005,11 @@ int main(int argc, char **argv) {
         }
         /* on libère l'espace utilisé par la ligne */
         free(rres.line);
+		printf("\n");
     }
 
     /* nettoyage final */
     inter_cleanup(&vm);
+	figures_cleanup();
     return 0;
 }
