@@ -358,10 +358,8 @@ struct num* num_add(struct num *a, struct num *b) {
 }
 
 struct num* num_sub(struct num *a, struct num *b) {
-	b->isNeg = ~b->isNeg;
-	Num *r = num_add(a, b);
-	b->isNeg = ~b->isNeg;
-	return r;
+	//TODO : Sub
+	return num_from_str("0");
 }
 
 struct num* num_mul(struct num *a, struct num *b) {
