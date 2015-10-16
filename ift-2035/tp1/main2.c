@@ -181,6 +181,8 @@ void dispose_Digit(struct digit*);
 struct figure* figure_from_int(int);
 /*Obtenir le chiffre selon une chai*/
 struct figure* figure_from_str(char);
+/*Plus grand que pour 2 num*/
+bool num_gt(struct num*, struct num*);
 
 /* créer un nouvea stack avec la capacité donnée */
 struct stack* stack_new(int cap);
@@ -270,8 +272,8 @@ struct figure* figure_from_str(char c) {
 	return figure_from_int(c - '0');
 }
 struct num* num_from_str(const char *text) {
-	int i = strlen(text) - 1;
-	int end = 0;
+	size_t i = strlen(text);
+	size_t end = 0;
 	bool isNeg = false;
 	if (text[0] == '-')
 	{
@@ -286,7 +288,7 @@ struct num* num_from_str(const char *text) {
 	}
 	struct digit *prev, *d;
 	//initialiser le premier Digit
-	struct figure *f = figure_from_str(text[i]);
+	struct figure *f = figure_from_str(text[i - 1]);
 	d = prev = init_Digit(f, NULL);
 	if (d == NULL)
 	{
@@ -297,8 +299,8 @@ struct num* num_from_str(const char *text) {
 	n->first = d;
 	i--;
 	//initialiser le reste du Num, si necessaire
-	for (; i >= end; i--) {
-		f = figure_from_str(text[i]);
+	for (; i >= end + 1; i--) {
+		f = figure_from_str(text[i - 1]);
 		d = init_Digit(f, NULL);
 		if (d == NULL)
 		{
@@ -351,15 +353,159 @@ void dispose_Digit(struct digit* d) {
 }
 
 struct num* num_add(struct num *a, struct num *b) {
-	//TODO : ADD
-	//Addition de block de grandeur 18 en utilisant long + long
-	//long_max value = 	9223372036854775807 > 10^19
-	return num_from_str("0");
+	//		   b
+	//	    | 0 | 1 |
+	// a   0| A | S	|  si A doit etre une addition
+	//	   1| S | A |  si S doit etre une soustraction
+	struct num* resultat;
+	if (a->isNeg != b->isNeg)
+	{
+		b->isNeg = !b->isNeg;
+		resultat = num_sub(a, b);
+		b->isNeg = !b->isNeg;
+		return resultat;
+	}
+	resultat = init_Num(a->isNeg & b->isNeg, NULL);
+	int r = 0;
+	int surplus = 0;
+	struct digit *c = a->first;
+	struct digit *d = b->first;
+	struct digit *cur = NULL;
+	struct digit *e = NULL;
+	while(c != NULL && d != NULL)
+	{
+		r = c->val->val + d->val->val + surplus;
+		e = init_Digit(figure_from_int(r % 10),NULL);
+		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+		surplus = r / 10;
+		cur = e;
+		c = c->next;
+		d = d->next;
+	}
+	if (c != NULL)
+	{
+		while (c != NULL)
+		{
+			r = c->val->val + surplus;
+			e = init_Digit(figure_from_int(r % 10), NULL);
+			surplus = r / 10;
+			cur->next = e;
+			cur = e;
+			c = c->next;
+		}
+	}
+	if (d != NULL)
+	{
+		while (d != NULL)
+		{
+			r = d->val->val + surplus;
+			e = init_Digit(figure_from_int(r % 10), NULL);
+			surplus = r / 10;
+			cur->next = e;
+			cur = e;
+			d = d->next;
+		}
+	}
+	if (surplus > 0)
+	{
+		e = init_Digit(figure_from_int(surplus), NULL);
+		cur->next = e;
+	}
+	return resultat;
+}
+
+bool num_gt(struct num *a, struct num *b) {
+	struct digit *c = a->first;
+	struct digit *d = b->first;
+	bool isBigger = false;
+	while (c != NULL && d != NULL)
+	{
+		int n = c->val->val;
+		int m = d->val->val;
+		if (n > m)
+			isBigger = true;
+		else if (m > n)
+			isBigger = false;
+		c = c->next;
+		d = d->next;
+	}
+	if (c != NULL) return true;
+	if (d != NULL) return false;
+	return isBigger;
 }
 
 struct num* num_sub(struct num *a, struct num *b) {
-	//TODO : Sub
-	return num_from_str("0");
+	//		   b
+	//	    | 0 | 1 |
+	// a   0| A | S	|  si A doit etre une addition
+	//	   1| S | A |  si S doit etre une soustraction
+	struct num* resultat;
+	if (a->isNeg != b->isNeg)
+	{
+		b->isNeg = !b->isNeg;
+		resultat = num_add(a, b);
+		b->isNeg = !b->isNeg;
+		return resultat;
+	}
+	if (num_gt(b, a))
+	{
+		resultat = num_sub(b, a);
+		resultat->isNeg = !resultat->isNeg;
+		return resultat;
+	}
+	resultat = init_Num(a->isNeg, NULL);
+	int r = 0;
+	int surplus = 0;
+	struct digit *c = a->first;
+	struct digit *d = b->first;
+	struct digit *cur = NULL;
+	struct digit *e = NULL;
+	struct digit *lastNonZero = NULL;
+	while (c != NULL && d != NULL)
+	{
+		r = c->val->val - d->val->val - surplus;
+		if (r >= 0) 
+		{
+			surplus = 0; 
+		} 
+		else 
+		{ 
+			r += 10; 
+			surplus = 1; 
+		}
+		e = init_Digit(figure_from_int(r % 10), NULL);
+		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+		lastNonZero = r == 0 ? lastNonZero : e;
+		cur = e;
+		c = c->next;
+		d = d->next;
+	} 
+	if (c != NULL)
+	{
+		while (c != NULL)
+		{
+			r = c->val->val - surplus;
+			if (r >= 0) { surplus = 0; }
+			else { r += 10; surplus = 1; }
+			e = init_Digit(figure_from_int(r % 10), NULL);
+			cur->next = e;
+			cur = e;
+			c = c->next;
+		}
+	}
+	//retirer les zeros en surplus
+	if(lastNonZero != NULL)
+	{
+		cur = lastNonZero->next;
+		lastNonZero->next = NULL;
+		while (cur != NULL)
+		{
+			e = cur;
+			cur = cur->next;
+			dispose_Digit(e);
+		}
+	}
+	return resultat;
 }
 
 struct num* num_mul(struct num *a, struct num *b) {
@@ -397,7 +543,10 @@ void num_print(struct num *n) {
 		d = d->next;
 	}
 	line[index++] = '\0';
-
+	if (n->isNeg)
+	{
+		printf("-");
+	}
 	for (int i = strlen(line) - 1; i >= 0; i--)
 		printf("%c", line[i]);
 }
