@@ -183,6 +183,8 @@ struct figure* figure_from_int(int);
 struct figure* figure_from_str(char);
 /*Plus grand que pour 2 num*/
 bool num_gt(struct num*, struct num*);
+/*Multiplication d'un num par un facteur de 0-9*/
+struct num* num_factorMul(struct num*, int, size_t);
 
 /* créer un nouvea stack avec la capacité donnée */
 struct stack* stack_new(int cap);
@@ -362,10 +364,16 @@ struct num* num_add(struct num *a, struct num *b) {
 	{
 		b->isNeg = !b->isNeg;
 		resultat = num_sub(a, b);
+		if (resultat == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
 		b->isNeg = !b->isNeg;
 		return resultat;
 	}
 	resultat = init_Num(a->isNeg & b->isNeg, NULL);
+	if (resultat == NULL) return NULL;
 	int r = 0;
 	int surplus = 0;
 	struct digit *c = a->first;
@@ -376,6 +384,11 @@ struct num* num_add(struct num *a, struct num *b) {
 	{
 		r = c->val->val + d->val->val + surplus;
 		e = init_Digit(figure_from_int(r % 10),NULL);
+		if (e == NULL) 
+		{
+			num_decref(resultat);
+			return NULL;
+		}
 		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
 		surplus = r / 10;
 		cur = e;
@@ -388,6 +401,11 @@ struct num* num_add(struct num *a, struct num *b) {
 		{
 			r = c->val->val + surplus;
 			e = init_Digit(figure_from_int(r % 10), NULL);
+			if (e == NULL)
+			{
+				num_decref(resultat);
+				return NULL;
+			}
 			surplus = r / 10;
 			cur->next = e;
 			cur = e;
@@ -400,6 +418,11 @@ struct num* num_add(struct num *a, struct num *b) {
 		{
 			r = d->val->val + surplus;
 			e = init_Digit(figure_from_int(r % 10), NULL);
+			if (e == NULL)
+			{
+				num_decref(resultat);
+				return NULL;
+			}
 			surplus = r / 10;
 			cur->next = e;
 			cur = e;
@@ -409,6 +432,11 @@ struct num* num_add(struct num *a, struct num *b) {
 	if (surplus > 0)
 	{
 		e = init_Digit(figure_from_int(surplus), NULL);
+		if (e == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
 		cur->next = e;
 	}
 	return resultat;
@@ -444,16 +472,19 @@ struct num* num_sub(struct num *a, struct num *b) {
 	{
 		b->isNeg = !b->isNeg;
 		resultat = num_add(a, b);
+		if (resultat == NULL) return NULL;
 		b->isNeg = !b->isNeg;
 		return resultat;
 	}
 	if (num_gt(b, a))
 	{
 		resultat = num_sub(b, a);
+		if (resultat == NULL) return NULL;
 		resultat->isNeg = !resultat->isNeg;
 		return resultat;
 	}
 	resultat = init_Num(a->isNeg, NULL);
+	if (resultat == NULL) return NULL;
 	int r = 0;
 	int surplus = 0;
 	struct digit *c = a->first;
@@ -475,7 +506,6 @@ struct num* num_sub(struct num *a, struct num *b) {
 		}
 		e = init_Digit(figure_from_int(r % 10), NULL);
 		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
-		lastNonZero = r == 0 ? lastNonZero : e;
 		cur = e;
 		c = c->next;
 		d = d->next;
@@ -488,6 +518,7 @@ struct num* num_sub(struct num *a, struct num *b) {
 			if (r >= 0) { surplus = 0; }
 			else { r += 10; surplus = 1; }
 			e = init_Digit(figure_from_int(r % 10), NULL);
+			lastNonZero = r == 0 ? lastNonZero : e;
 			cur->next = e;
 			cur = e;
 			c = c->next;
@@ -508,9 +539,89 @@ struct num* num_sub(struct num *a, struct num *b) {
 	return resultat;
 }
 
+struct num* num_factorMul(struct num *a, int f, size_t pow) {
+	struct num *resultat = init_Num(a->isNeg, NULL);
+	if (resultat == NULL)
+		return NULL;
+	struct digit *c = a->first;
+	struct digit *cur = NULL;
+	struct digit *e = NULL;
+	//Ajouter les zeros de puissance
+	while (pow > 0)
+	{
+		e = init_Digit(figure_from_int(0), NULL);
+		if (e == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
+		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+		cur = e;
+		pow--;
+	}
+	//Multiplier par le facteur
+	int r, surplus = 0;
+	while (c != NULL)
+	{
+		r = c->val->val * f + surplus;
+		e = init_Digit(figure_from_int(r % 10), NULL);
+		if (e == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
+		surplus = r / 10;
+		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+		cur = e;
+		c = c->next;
+	}
+	if (surplus > 0)
+	{
+		e = init_Digit(figure_from_int(surplus), NULL);
+		if (e == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
+		cur->next = e;
+	}
+	return resultat;
+}
+
 struct num* num_mul(struct num *a, struct num *b) {
-    //TODO : MUL
-	return num_from_str("0");
+	struct num *resultat = NULL;
+	bool isNeg = a->isNeg & b->isNeg;
+	size_t pow = 0;
+	struct digit *d = b->first;
+	struct digit *cur = NULL;
+	struct num *r = NULL;
+	struct num *tmpr = NULL;
+	while (d != NULL)
+	{
+		r = num_factorMul(a, d->val->val, pow);
+		if (r == NULL)
+		{
+			num_decref(resultat);
+			return NULL;
+		}
+		if (resultat == NULL)
+			resultat = r;
+		else
+		{
+			tmpr = num_add(resultat, r);
+			num_decref(resultat);
+			num_decref(r);
+			if (tmpr == NULL)
+			{
+				num_decref(tmpr);
+				return NULL;
+			}
+			resultat = tmpr;
+		}
+		d = d->next;
+		pow++;
+	}
+	return resultat;
 }
 
 bool num_is_zero(struct num *n) {
@@ -549,6 +660,7 @@ void num_print(struct num *n) {
 	}
 	for (int i = strlen(line) - 1; i >= 0; i--)
 		printf("%c", line[i]);
+	printf("\n");
 }
 
 void num_incref(struct num *n) {
@@ -1152,7 +1264,6 @@ int main(int argc, char **argv) {
         }
         /* on libère l'espace utilisé par la ligne */
         free(rres.line);
-		printf("\n");
     }
 
     /* nettoyage final */
