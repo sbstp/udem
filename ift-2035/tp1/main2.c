@@ -1176,7 +1176,7 @@ struct read_line_result read_line() {
     int car;
     struct read_line_result res;
 
-    buff = malloc(cap + 1);
+    buff = malloc(sizeof(char) * cap + 1);
     if (buff == NULL) {
         res.err = READ_LINE_ERR_ALLOC;
         return res;
