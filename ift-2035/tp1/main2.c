@@ -730,8 +730,8 @@ struct tokenizer* tokenizer_new(const char *src) {
     tkzer->len = strlen(src);
     tkzer->src = src;
     /* en créant un charbuff de la taille de src, on s'assure
-    * qu'il n'y aura pas de réallocation dans tokenizer_next. */
-    tkzer->buff = malloc(sizeof(char) * tkzer->len);
+     * qu'il n'y aura pas de réallocation dans tokenizer_next. */
+    tkzer->buff = malloc(sizeof(char) * tkzer->len + 1);
     if (tkzer->buff == NULL) {
         free(tkzer);
         return NULL;
