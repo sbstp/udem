@@ -112,6 +112,26 @@
 	possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
 	Il y a plus de détails sur les erreurs dans la section 2. e) .
 
+	\subsection{(e) comment se fait le traitement des erreurs}
+	Les erreurs sont représentées avec des types de données algébriques (aussi appelés  \"tagged union\"
+	ou \"variante\"), inspirés par la gestion d'erreur du langage Rust. Un enum est utilisé comme
+	discriminant et une structure composée du discriminant et d'une union est utilisée pour représenter
+	le résultat d'une opération pouvant échouer. L'union contient des données additionelles sur le
+	résultat.
+
+	Par exemple, le résultat produit par inter\_eval(...) est inter\_eval\_result. Le discriminant
+	est inter\_eval\_err et contient trois options: aucune erreur, erreur d'allocation, variable
+	non définie. L'union du résultat contient 2 options: le nombre lorsqu'il n'y a pas d'erreur et
+	le nom de la variable lorsqu'une variable non définie est utilisée.
+
+	Les erreurs sont passées par copie car leur allocation ne doit pas échoucher, et que leur taille
+	est petite de toute façon.
+
+	Lorsque la boucle d'exécution reçoit un résultat qui est une erreur, le résultat est envoyé à la
+	fonction d'affichage appropriée. Cette dernière affichera l'erreur ainsi que les données additionelles
+	contenu par l'union. Si le résultat n'est pas une erreur, la boucle extrait les données dont elle
+	a besoin et continue sont travail.
+
 \section{Preuve par induction}
 Étape de Base:\\
 	\[1^2 = \frac{(-1)^{1+1}1(1+1)}{2} = \frac{1\bullet 1 (2)}{2} = 1\]
