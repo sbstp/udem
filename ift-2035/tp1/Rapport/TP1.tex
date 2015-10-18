@@ -95,6 +95,23 @@
 	survient, elle sera affichée. Si aucune erreur ne survient, la valeur retournée est affichée.
 	Finalement, la mémoire utilisé par l'ASA est libérée et on recommence la saisie.
 
+	\subsection{(c) comment se fait la gestion de la mémoire}
+	Les nombres utilisent un compteur de référence qui est maintenu manuellement. Grossièrement,
+	c'est l'équivalent d'un shared\_ptr C++. Les nombres sont créés lors de l'analyse de la
+	ligne. Lorsque les nombres sont assignés à des variables, ont augmente le compteur de
+	référence. Lorsque l'ASA est libéré, on décrémente le compteur de référence des nombres.
+	Les nombres n'ayant pas été assignés à des variables seront donc libérés.
+
+	Les structures contenant des données allouées dynamiquement sont aussi allouées de cette
+	façon. Cela permet d'avoir d'une initialization complète et exhaustive des structures.
+	Si une erreur d'allocation survient, les allocations précédentes sont libérés, et il
+	n'existe donc pas d'objet dont l'état est incertain.
+
+	L'entête <setjmp.h> n'étant pas permis, la gestion des erreurs d'allocation se fait de
+	façon manuelle. Les erreurs d'allocation sont signalées par un pointeur NULL lorsque
+	possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
+	Il y a plus de détails sur les erreurs dans la section 2. e) .
+
 \section{Preuve par induction}
 Étape de Base:\\
 	\[1^2 = \frac{(-1)^{1+1}1(1+1)}{2} = \frac{1\bullet 1 (2)}{2} = 1\]
