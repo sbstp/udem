@@ -590,10 +590,8 @@ struct num* num_factorMul(struct num *a, int f, size_t pow) {
 
 struct num* num_mul(struct num *a, struct num *b) {
     struct num *resultat = NULL;
-    bool isNeg = a->isNeg & b->isNeg;
     size_t pow = 0;
     struct digit *d = b->first;
-    struct digit *cur = NULL;
     struct num *r = NULL;
     struct num *tmpr = NULL;
     while (d != NULL)
@@ -633,6 +631,7 @@ void num_print(struct num *n) {
     size_t size = 0, index = 0, buffer_size = 20;
     char c = '\0';
     struct digit *d = n->first;
+    int i;
 
     while (d != NULL) {
         c = d->val->val + '0';
@@ -658,7 +657,7 @@ void num_print(struct num *n) {
     {
         printf("-");
     }
-    for (int i = strlen(line) - 1; i >= 0; i--)
+    for (i = strlen(line) - 1; i >= 0; i--)
         printf("%c", line[i]);
     printf("\n");
     free(line);
@@ -1209,7 +1208,8 @@ struct read_line_result read_line() {
 }
 
 void figures_cleanup() {
-    for (int i = 0; i < 10; i++)
+    int i;
+    for (i = 0; i < 10; i++)
     {
         if (__figures[i] != NULL)
         {
