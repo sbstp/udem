@@ -6,8 +6,8 @@
 \usepackage{amssymb}
 
 %Enable fr support
-\usepackage[utf8]{inputenc} 
-\usepackage[T1]{fontenc} 
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage{lmodern} % load a font with all the characters
 
 %Assign document variables
@@ -34,25 +34,25 @@
 
 
 \begin{document}
-\begin{titlepage} 
+\begin{titlepage}
 	\begin{center}
 		\textsc{\normalsize Université de Montréal}\\[2.5cm]
-		
+
 		\textsc{\LARGE \@title}\\[2.5cm]
-		
+
 		\textsc{\small Par}\\[0.25cm]
 		\textsc{\LARGE \Author}\\[0.25cm]
 		\textsc{\normalsize (20018469)}\\[0.25cm]
 		\textsc{\LARGE \Authorr}\\[0.25cm]
 		\textsc{\normalsize (Ton Matricule)}\\[2.5cm]
-		
+
 		\textsc{\normalsize Baccalauréat en informatique}\\
 		\textsc{\normalsize Faculté des arts et des sciences}\\[2.5cm]
-		
+
 		\textsc{\small Travail présenté à \Teacher}\\
 		\textsc{\small Dans le cadre du cours \ClassNum}\\
 		\textsc{\small \ClassName}\\[2.5cm]
-		
+
 		\textsc{\normalsize \DateMMMMYYYY}\\[1.5cm]
 	\end{center}
 \end{titlepage}
@@ -67,50 +67,37 @@
 		1&0&1&0\\
 		1&1&0&1\\
 	\end{tabular}
-\section{Arithmétique modulo}
-	\subsection{Modulo 4}
-		Définition des ensembles:\\
-	\[\{...,0,4,8,12,...\}\]
-	\[\{...,1,5,9,13,...\}\]
-	\[\{...,2,6,10,14,...\}\]
-	\[\{...,3,7,11,15,...\}\]
-	À partir de cette représentation, on peut noter les quatre ensembles représentatifs, soient $\bar 0, \bar 1, \bar 2, \bar 3$.\linebreak
-	\linebreak
-	\begin{tabular}{cc|cc}
-		$\bar x$&$\bar y$&$\bar x+\bar y$&$\bar x-\bar y$\\
-		\hline
-		$\bar 2$&$\bar 0$&$\bar 2$&$\bar 2$\\
-		$\bar 2$&$\bar 1$&$\bar 3$&$\bar 1$\\
-		$\bar 2$&$\bar 2$&$\bar 0$&$\bar 0$\\
-		$\bar 2$&$\bar 3$&$\bar 1$&$\bar 3$\\
-	\end{tabular}
-	\subsection{Modulo 2}
-			Définition des ensembles:\\
-		\[\{...,0,2,4,6,...\}\]
-		\[\{...,1,3,5,7,...\}\]
-		À partir de cette représentation, on peut noter les deux ensembles représentatifs, soient $\bar 0, \bar 1$.\linebreak
-		\linebreak
-		\begin{tabular}{cc|c}
-			$\bar x$&$\bar y$&$\bar x+\bar y$\\
-			\hline
-			$\bar 0$&$\bar 0$&$\bar 0$\\
-			$\bar 0$&$\bar 1$&$\bar 1$\\
-			$\bar 1$&$\bar 0$&$\bar 1$\\
-			$\bar 1$&$\bar 1$&$\bar 0$\\
-		\end{tabular}
-		\begin{tabular}{cc|c}
-			$A$&$B$&$A \oplus B$\\
-			\hline
-			$0$&$0$&$0$\\
-			$0$&$1$&$1$\\
-			$1$&$0$&$1$\\
-			$1$&$1$&$0$\\
-		\end{tabular}\linebreak
-		La tableau est très similaire à la table de vérité du ou exclusif.
-		\newpage
+\section{Résolution des problèmes}
+	\subsection{(b) comment se fait l’analyse de chaque ligne et le calcul de la réponse}
+	La fonction read\_line lit l'expression entrée par l'utilisateur un caractère à la fois,
+	avec la fonction getchar. Si le caractère est EOF, on arrête la lecture et on retourne
+	une erreur signalant EOF. Le programme fera son nettoyage final et terminera. Tant que
+	le caractère n'est pas un saut de ligne, les caractères sont copiés dans un tableau
+	alloué avec malloc. Lorsque plus d'espace est nécessaire, le tableau est redimensionné.
+	Lorsque la fin de ligne et atteinte, on retourne la chaîne de caractères.
+
+	La chaîne est ensuite envoyée à la fonction ast\_parse qui utilise un tokenizer pour séparer
+	les éléments du texte en fonction des espaces. Elle itère à travers les tokens et produit un
+	arbre de syntaxe abstraite. Elle utilise une pile pour empiler les opérandes, et en fonction
+	de l'arité du prochain élément, désempilera le nombre d'opérandes nécessaire. Un nouveau
+	noeud sera créé et empilé en fonction du type d'élément. Si le nombre d'opérandes requises
+	n'est pas disponible, une erreur est détectée. La procédure détecte les expressions malformées
+	et signale ces erreurs. Lorsque tous les éléments on étés analysés, on regarde la hauteur de
+	la pile. Si plus qu'un élément si trouve, cela veut dire que plusieurs expressions étaient
+	contenues dans le texte reçu. On signale l'erreur. Si ce n'est pas le cas, on désempile le dernier
+	élément de la pile, on signale qu'il n'y a pas d'erreur et on obtient l'arbre complet.
+
+	La procédure appelant vérifie si ast\_parse a retourné une erreur. Si c'est le cas, on affiche
+	un message approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction inter\_eval qui évaluera
+	l'expression. L'interprète parcourt l'arbre avec un algorithme récursif, effectue les opérations,
+	maintient la liste des variables, et retourne la valeur de l'expression. L'interprète peut aussi
+	retourner une erreur si l'allocation échoue ou si une variable indéfinie est utilisée. Si une erreur
+	survient, elle sera affichée. Si aucune erreur ne survient, la valeur retournée est affichée.
+	Finalement, la mémoire utilisé par l'ASA est libérée et on recommence la saisie.
+
 \section{Preuve par induction}
 Étape de Base:\\
-	\[1^2 = \frac{(-1)^{1+1}1(1+1)}{2} = \frac{1\bullet 1 (2)}{2} = 1\]	
+	\[1^2 = \frac{(-1)^{1+1}1(1+1)}{2} = \frac{1\bullet 1 (2)}{2} = 1\]
 Étape Inductive:\\
 	Supposons que le formule est vrai pour $n$.\\
 	Prouvons que c'est aussi vrai pour $n+1$.
