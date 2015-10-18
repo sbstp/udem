@@ -1,13 +1,13 @@
 /*
- * IFT-2035: Travail pratique 1
- *
- * Auteurs:
- *   Simon Bernier St-Pierre
- *	 Kevin Belisle
- *
- * "Repository" Git: https://github.com/sbstp/udem/tree/master/ift-2035/tp1
- *
- */
+* IFT-2035: Travail pratique 1
+*
+* Auteurs:
+*   Simon Bernier St-Pierre
+*   Kevin Belisle
+*
+* "Repository" Git: https://github.com/sbstp/udem/tree/master/ift-2035/tp1
+*
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,21 +18,21 @@ typedef enum { false, true } bool;
 //Représente un chiffre de 0 à 9
 struct figure
 {
-	unsigned int val : 4;
+    unsigned int val : 4;
 };
 
 //Variable globale : contient les chiffres constants 0-9
 static struct figure *__figures[10];
 
 struct digit {
-	struct figure *val;
-	struct digit *next;
+    struct figure *val;
+    struct digit *next;
 };
 
 struct num {
-	bool isNeg;
-	struct digit *first;
-	int refcount;
+    bool isNeg;
+    struct digit *first;
+    int refcount;
 };
 
 struct stack {
@@ -260,368 +260,368 @@ inline bool is_whitespace(char car) {
 }
 
 struct figure* figure_from_int(int val) {
-	if (__figures[val] == NULL)
-	{
-		struct figure *f = malloc(sizeof(struct figure));
-		if (f == NULL)
-			return NULL;
-		f->val = val;
-		__figures[val] = f;
-	}
-	return __figures[val];
+    if (__figures[val] == NULL)
+    {
+        struct figure *f = malloc(sizeof(struct figure));
+        if (f == NULL)
+            return NULL;
+        f->val = val;
+        __figures[val] = f;
+    }
+    return __figures[val];
 }
 struct figure* figure_from_str(char c) {
-	return figure_from_int(c - '0');
+    return figure_from_int(c - '0');
 }
 struct num* num_from_str(const char *text) {
-	size_t i = strlen(text);
-	size_t end = 0;
-	bool isNeg = false;
-	if (text[0] == '-')
-	{
-		isNeg = true;
-		end++;
-	}
-	struct num* n = init_Num(isNeg, NULL);
-	if (n == NULL)
-	{
-		// TODO : Error Malloc
-		return NULL;
-	}
-	struct digit *prev, *d;
-	//initialiser le premier Digit
-	struct figure *f = figure_from_str(text[i - 1]);
-	d = prev = init_Digit(f, NULL);
-	if (d == NULL)
-	{
-		// TODO : Error Malloc
-		dispose_Num(n);
-		return NULL;
-	}
-	n->first = d;
-	i--;
-	//initialiser le reste du Num, si necessaire
-	for (; i >= end + 1; i--) {
-		f = figure_from_str(text[i - 1]);
-		d = init_Digit(f, NULL);
-		if (d == NULL)
-		{
-			// TODO : Error Malloc
-			dispose_Num(n);
-			return NULL;
-		}
-		prev->next = d;
-		prev = d;
-	}
-	return n;
+    size_t i = strlen(text);
+    size_t end = 0;
+    bool isNeg = false;
+    if (text[0] == '-')
+    {
+        isNeg = true;
+        end++;
+    }
+    struct num* n = init_Num(isNeg, NULL);
+    if (n == NULL)
+    {
+        // TODO : Error Malloc
+        return NULL;
+    }
+    struct digit *prev, *d;
+    //initialiser le premier Digit
+    struct figure *f = figure_from_str(text[i - 1]);
+    d = prev = init_Digit(f, NULL);
+    if (d == NULL)
+    {
+        // TODO : Error Malloc
+        dispose_Num(n);
+        return NULL;
+    }
+    n->first = d;
+    i--;
+    //initialiser le reste du Num, si necessaire
+    for (; i >= end + 1; i--) {
+        f = figure_from_str(text[i - 1]);
+        d = init_Digit(f, NULL);
+        if (d == NULL)
+        {
+            // TODO : Error Malloc
+            dispose_Num(n);
+            return NULL;
+        }
+        prev->next = d;
+        prev = d;
+    }
+    return n;
 }
 
 struct num* init_Num(bool isNeg, struct digit* first) {
-	struct num* n = malloc(sizeof(struct num));
-	if (n == NULL)
-	{
-		// TODO : Error Malloc
-		return NULL;
-	}
-	n->isNeg = isNeg;
-	n->first = first;
-	n->refcount = 1;
-	return n;
+    struct num* n = malloc(sizeof(struct num));
+    if (n == NULL)
+    {
+        // TODO : Error Malloc
+        return NULL;
+    }
+    n->isNeg = isNeg;
+    n->first = first;
+    n->refcount = 1;
+    return n;
 }
 void dispose_Num(struct num* n) {
-	struct digit *d = n->first, *cur = NULL;
-	while (d != NULL) {
-		cur = d->next;
-		dispose_Digit(d);
-		d = cur;
-	}
-	free(n);
+    struct digit *d = n->first, *cur = NULL;
+    while (d != NULL) {
+        cur = d->next;
+        dispose_Digit(d);
+        d = cur;
+    }
+    free(n);
 }
 struct digit* init_Digit(struct figure* f, struct digit* next) {
-	struct digit* d = malloc(sizeof(struct digit));
-	if (d == NULL)
-	{
-		// TODO : Error Malloc
-		return NULL;
-	}
-	d->val = f;
-	d->next = next;
-	return d;
+    struct digit* d = malloc(sizeof(struct digit));
+    if (d == NULL)
+    {
+        // TODO : Error Malloc
+        return NULL;
+    }
+    d->val = f;
+    d->next = next;
+    return d;
 }
 void dispose_Digit(struct digit* d) {
-	//Ne jamais libérer une figure, elles seront libérer à la fin.
-	//Le num est responsable de libérer la liste de digit
-	free(d);
+    //Ne jamais libérer une figure, elles seront libérer à la fin.
+    //Le num est responsable de libérer la liste de digit
+    free(d);
 }
 
 struct num* num_add(struct num *a, struct num *b) {
-	//		   b
-	//	    | 0 | 1 |
-	// a   0| A | S	|  si A doit etre une addition
-	//	   1| S | A |  si S doit etre une soustraction
-	struct num* resultat;
-	if (a->isNeg != b->isNeg)
-	{
-		b->isNeg = !b->isNeg;
-		resultat = num_sub(a, b);
-		if (resultat == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		b->isNeg = !b->isNeg;
-		return resultat;
-	}
-	resultat = init_Num(a->isNeg & b->isNeg, NULL);
-	if (resultat == NULL) return NULL;
-	int r = 0;
-	int surplus = 0;
-	struct digit *c = a->first;
-	struct digit *d = b->first;
-	struct digit *cur = NULL;
-	struct digit *e = NULL;
-	while(c != NULL && d != NULL)
-	{
-		r = c->val->val + d->val->val + surplus;
-		e = init_Digit(figure_from_int(r % 10),NULL);
-		if (e == NULL) 
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
-		surplus = r / 10;
-		cur = e;
-		c = c->next;
-		d = d->next;
-	}
-	if (c != NULL)
-	{
-		while (c != NULL)
-		{
-			r = c->val->val + surplus;
-			e = init_Digit(figure_from_int(r % 10), NULL);
-			if (e == NULL)
-			{
-				num_decref(resultat);
-				return NULL;
-			}
-			surplus = r / 10;
-			cur->next = e;
-			cur = e;
-			c = c->next;
-		}
-	}
-	if (d != NULL)
-	{
-		while (d != NULL)
-		{
-			r = d->val->val + surplus;
-			e = init_Digit(figure_from_int(r % 10), NULL);
-			if (e == NULL)
-			{
-				num_decref(resultat);
-				return NULL;
-			}
-			surplus = r / 10;
-			cur->next = e;
-			cur = e;
-			d = d->next;
-		}
-	}
-	if (surplus > 0)
-	{
-		e = init_Digit(figure_from_int(surplus), NULL);
-		if (e == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		cur->next = e;
-	}
-	return resultat;
+    //           b
+    //        | 0 | 1 |
+    // a   0| A | S    |  si A doit etre une addition
+    //       1| S | A |  si S doit etre une soustraction
+    struct num* resultat;
+    if (a->isNeg != b->isNeg)
+    {
+        b->isNeg = !b->isNeg;
+        resultat = num_sub(a, b);
+        if (resultat == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        b->isNeg = !b->isNeg;
+        return resultat;
+    }
+    resultat = init_Num(a->isNeg & b->isNeg, NULL);
+    if (resultat == NULL) return NULL;
+    int r = 0;
+    int surplus = 0;
+    struct digit *c = a->first;
+    struct digit *d = b->first;
+    struct digit *cur = NULL;
+    struct digit *e = NULL;
+    while (c != NULL && d != NULL)
+    {
+        r = c->val->val + d->val->val + surplus;
+        e = init_Digit(figure_from_int(r % 10), NULL);
+        if (e == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+        surplus = r / 10;
+        cur = e;
+        c = c->next;
+        d = d->next;
+    }
+    if (c != NULL)
+    {
+        while (c != NULL)
+        {
+            r = c->val->val + surplus;
+            e = init_Digit(figure_from_int(r % 10), NULL);
+            if (e == NULL)
+            {
+                num_decref(resultat);
+                return NULL;
+            }
+            surplus = r / 10;
+            cur->next = e;
+            cur = e;
+            c = c->next;
+        }
+    }
+    if (d != NULL)
+    {
+        while (d != NULL)
+        {
+            r = d->val->val + surplus;
+            e = init_Digit(figure_from_int(r % 10), NULL);
+            if (e == NULL)
+            {
+                num_decref(resultat);
+                return NULL;
+            }
+            surplus = r / 10;
+            cur->next = e;
+            cur = e;
+            d = d->next;
+        }
+    }
+    if (surplus > 0)
+    {
+        e = init_Digit(figure_from_int(surplus), NULL);
+        if (e == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        cur->next = e;
+    }
+    return resultat;
 }
 
 bool num_gt(struct num *a, struct num *b) {
-	struct digit *c = a->first;
-	struct digit *d = b->first;
-	bool isBigger = false;
-	while (c != NULL && d != NULL)
-	{
-		int n = c->val->val;
-		int m = d->val->val;
-		if (n > m)
-			isBigger = true;
-		else if (m > n)
-			isBigger = false;
-		c = c->next;
-		d = d->next;
-	}
-	if (c != NULL) return true;
-	if (d != NULL) return false;
-	return isBigger;
+    struct digit *c = a->first;
+    struct digit *d = b->first;
+    bool isBigger = false;
+    while (c != NULL && d != NULL)
+    {
+        int n = c->val->val;
+        int m = d->val->val;
+        if (n > m)
+            isBigger = true;
+        else if (m > n)
+            isBigger = false;
+        c = c->next;
+        d = d->next;
+    }
+    if (c != NULL) return true;
+    if (d != NULL) return false;
+    return isBigger;
 }
 
 struct num* num_sub(struct num *a, struct num *b) {
-	//		   b
-	//	    | 0 | 1 |
-	// a   0| A | S	|  si A doit etre une addition
-	//	   1| S | A |  si S doit etre une soustraction
-	struct num* resultat;
-	if (a->isNeg != b->isNeg)
-	{
-		b->isNeg = !b->isNeg;
-		resultat = num_add(a, b);
-		if (resultat == NULL) return NULL;
-		b->isNeg = !b->isNeg;
-		return resultat;
-	}
-	if (num_gt(b, a))
-	{
-		resultat = num_sub(b, a);
-		if (resultat == NULL) return NULL;
-		resultat->isNeg = !resultat->isNeg;
-		return resultat;
-	}
-	resultat = init_Num(a->isNeg, NULL);
-	if (resultat == NULL) return NULL;
-	int r = 0;
-	int surplus = 0;
-	struct digit *c = a->first;
-	struct digit *d = b->first;
-	struct digit *cur = NULL;
-	struct digit *e = NULL;
-	struct digit *lastNonZero = NULL;
-	while (c != NULL && d != NULL)
-	{
-		r = c->val->val - d->val->val - surplus;
-		if (r >= 0) 
-		{
-			surplus = 0; 
-		} 
-		else 
-		{ 
-			r += 10; 
-			surplus = 1; 
-		}
-		e = init_Digit(figure_from_int(r % 10), NULL);
-		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
-		cur = e;
-		c = c->next;
-		d = d->next;
-	} 
-	if (c != NULL)
-	{
-		while (c != NULL)
-		{
-			r = c->val->val - surplus;
-			if (r >= 0) { surplus = 0; }
-			else { r += 10; surplus = 1; }
-			e = init_Digit(figure_from_int(r % 10), NULL);
-			lastNonZero = r == 0 ? lastNonZero : e;
-			cur->next = e;
-			cur = e;
-			c = c->next;
-		}
-	}
-	//retirer les zeros en surplus
-	if(lastNonZero != NULL)
-	{
-		cur = lastNonZero->next;
-		lastNonZero->next = NULL;
-		while (cur != NULL)
-		{
-			e = cur;
-			cur = cur->next;
-			dispose_Digit(e);
-		}
-	}
-	return resultat;
+    //           b
+    //        | 0 | 1 |
+    // a   0| A | S    |  si A doit etre une addition
+    //       1| S | A |  si S doit etre une soustraction
+    struct num* resultat;
+    if (a->isNeg != b->isNeg)
+    {
+        b->isNeg = !b->isNeg;
+        resultat = num_add(a, b);
+        if (resultat == NULL) return NULL;
+        b->isNeg = !b->isNeg;
+        return resultat;
+    }
+    if (num_gt(b, a))
+    {
+        resultat = num_sub(b, a);
+        if (resultat == NULL) return NULL;
+        resultat->isNeg = !resultat->isNeg;
+        return resultat;
+    }
+    resultat = init_Num(a->isNeg, NULL);
+    if (resultat == NULL) return NULL;
+    int r = 0;
+    int surplus = 0;
+    struct digit *c = a->first;
+    struct digit *d = b->first;
+    struct digit *cur = NULL;
+    struct digit *e = NULL;
+    struct digit *lastNonZero = NULL;
+    while (c != NULL && d != NULL)
+    {
+        r = c->val->val - d->val->val - surplus;
+        if (r >= 0)
+        {
+            surplus = 0;
+        }
+        else
+        {
+            r += 10;
+            surplus = 1;
+        }
+        e = init_Digit(figure_from_int(r % 10), NULL);
+        if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+        cur = e;
+        c = c->next;
+        d = d->next;
+    }
+    if (c != NULL)
+    {
+        while (c != NULL)
+        {
+            r = c->val->val - surplus;
+            if (r >= 0) { surplus = 0; }
+            else { r += 10; surplus = 1; }
+            e = init_Digit(figure_from_int(r % 10), NULL);
+            lastNonZero = r == 0 ? lastNonZero : e;
+            cur->next = e;
+            cur = e;
+            c = c->next;
+        }
+    }
+    //retirer les zeros en surplus
+    if (lastNonZero != NULL)
+    {
+        cur = lastNonZero->next;
+        lastNonZero->next = NULL;
+        while (cur != NULL)
+        {
+            e = cur;
+            cur = cur->next;
+            dispose_Digit(e);
+        }
+    }
+    return resultat;
 }
 
 struct num* num_factorMul(struct num *a, int f, size_t pow) {
-	struct num *resultat = init_Num(a->isNeg, NULL);
-	if (resultat == NULL)
-		return NULL;
-	struct digit *c = a->first;
-	struct digit *cur = NULL;
-	struct digit *e = NULL;
-	//Ajouter les zeros de puissance
-	while (pow > 0)
-	{
-		e = init_Digit(figure_from_int(0), NULL);
-		if (e == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
-		cur = e;
-		pow--;
-	}
-	//Multiplier par le facteur
-	int r, surplus = 0;
-	while (c != NULL)
-	{
-		r = c->val->val * f + surplus;
-		e = init_Digit(figure_from_int(r % 10), NULL);
-		if (e == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		surplus = r / 10;
-		if (resultat->first == NULL) resultat->first = e; else cur->next = e;
-		cur = e;
-		c = c->next;
-	}
-	if (surplus > 0)
-	{
-		e = init_Digit(figure_from_int(surplus), NULL);
-		if (e == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		cur->next = e;
-	}
-	return resultat;
+    struct num *resultat = init_Num(a->isNeg, NULL);
+    if (resultat == NULL)
+        return NULL;
+    struct digit *c = a->first;
+    struct digit *cur = NULL;
+    struct digit *e = NULL;
+    //Ajouter les zeros de puissance
+    while (pow > 0)
+    {
+        e = init_Digit(figure_from_int(0), NULL);
+        if (e == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+        cur = e;
+        pow--;
+    }
+    //Multiplier par le facteur
+    int r, surplus = 0;
+    while (c != NULL)
+    {
+        r = c->val->val * f + surplus;
+        e = init_Digit(figure_from_int(r % 10), NULL);
+        if (e == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        surplus = r / 10;
+        if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+        cur = e;
+        c = c->next;
+    }
+    if (surplus > 0)
+    {
+        e = init_Digit(figure_from_int(surplus), NULL);
+        if (e == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        cur->next = e;
+    }
+    return resultat;
 }
 
 struct num* num_mul(struct num *a, struct num *b) {
-	struct num *resultat = NULL;
-	bool isNeg = a->isNeg & b->isNeg;
-	size_t pow = 0;
-	struct digit *d = b->first;
-	struct digit *cur = NULL;
-	struct num *r = NULL;
-	struct num *tmpr = NULL;
-	while (d != NULL)
-	{
-		r = num_factorMul(a, d->val->val, pow);
-		if (r == NULL)
-		{
-			num_decref(resultat);
-			return NULL;
-		}
-		if (resultat == NULL)
-			resultat = r;
-		else
-		{
-			tmpr = num_add(resultat, r);
-			num_decref(resultat);
-			num_decref(r);
-			if (tmpr == NULL)
-			{
-				num_decref(tmpr);
-				return NULL;
-			}
-			resultat = tmpr;
-		}
-		d = d->next;
-		pow++;
-	}
-	return resultat;
+    struct num *resultat = NULL;
+    bool isNeg = a->isNeg & b->isNeg;
+    size_t pow = 0;
+    struct digit *d = b->first;
+    struct digit *cur = NULL;
+    struct num *r = NULL;
+    struct num *tmpr = NULL;
+    while (d != NULL)
+    {
+        r = num_factorMul(a, d->val->val, pow);
+        if (r == NULL)
+        {
+            num_decref(resultat);
+            return NULL;
+        }
+        if (resultat == NULL)
+            resultat = r;
+        else
+        {
+            tmpr = num_add(resultat, r);
+            num_decref(resultat);
+            num_decref(r);
+            if (tmpr == NULL)
+            {
+                num_decref(tmpr);
+                return NULL;
+            }
+            resultat = tmpr;
+        }
+        d = d->next;
+        pow++;
+    }
+    return resultat;
 }
 
 bool num_is_zero(struct num *n) {
@@ -629,38 +629,39 @@ bool num_is_zero(struct num *n) {
 }
 
 void num_print(struct num *n) {
-	char *line = NULL, *tmp = NULL;
-	size_t size = 0, index = 0, buffer_size = 20;
-	char c = '\0';
-	struct digit *d = n->first;
+    char *line = NULL, *tmp = NULL;
+    size_t size = 0, index = 0, buffer_size = 20;
+    char c = '\0';
+    struct digit *d = n->first;
 
-	while (d != NULL) {
-		c = d->val->val + '0';
+    while (d != NULL) {
+        c = d->val->val + '0';
 
-		/* Aggrandir le tableau si necessaire */
-		if (size <= index) {
-			size += buffer_size;
-			tmp = realloc(line, size);
-			if (!tmp) {
-				free(line);
-				line = NULL;
-				break;
-			}
-			line = tmp;
-		}
+        /* Aggrandir le tableau si necessaire */
+        if (size <= index) {
+            size += buffer_size;
+            tmp = realloc(line, size);
+            if (!tmp) {
+                free(line);
+                line = NULL;
+                break;
+            }
+            line = tmp;
+        }
 
-		/* Actually store the thing. */
-		line[index++] = c;
-		d = d->next;
-	}
-	line[index++] = '\0';
-	if (n->isNeg)
-	{
-		printf("-");
-	}
-	for (int i = strlen(line) - 1; i >= 0; i--)
-		printf("%c", line[i]);
-	printf("\n");
+        /* Actually store the thing. */
+        line[index++] = c;
+        d = d->next;
+    }
+    line[index++] = '\0';
+    if (n->isNeg)
+    {
+        printf("-");
+    }
+    for (int i = strlen(line) - 1; i >= 0; i--)
+        printf("%c", line[i]);
+    printf("\n");
+    free(line);
 }
 
 void num_incref(struct num *n) {
@@ -729,7 +730,7 @@ struct tokenizer* tokenizer_new(const char *src) {
     tkzer->len = strlen(src);
     tkzer->src = src;
     /* en créant un charbuff de la taille de src, on s'assure
-     * qu'il n'y aura pas de réallocation dans tokenizer_next. */
+    * qu'il n'y aura pas de réallocation dans tokenizer_next. */
     tkzer->buff = malloc(sizeof(char) * tkzer->len);
     if (tkzer->buff == NULL) {
         free(tkzer);
@@ -905,18 +906,21 @@ struct ast_parse_result ast_parse(const char* text) {
             if (new == NULL) {
                 ast_node_free(node);
             }
-        } else if (is_letter(car)) {
+        }
+        else if (is_letter(car)) {
             /* use */
             if (tok.len > 1) {
                 res.err = AST_PARSE_ERR_VARNAME;
                 break;
             }
             new = ast_node_use(car);
-        } else if (is_digit(car)) {
+        }
+        else if (is_digit(car)) {
             /* num */
             /* TODO validate digit */
             new = ast_node_num(tok.text);
-        } else if (car == '+' || car == '-' || car == '*') {
+        }
+        else if (car == '+' || car == '-' || car == '*') {
             /* obtenir la deuxieme opérande, erreur si il n'y en a pas */
             op2 = stack_pop(nodes);
             if (op2 == NULL) {
@@ -932,24 +936,25 @@ struct ast_parse_result ast_parse(const char* text) {
             }
             /* détecter l'opérateur */
             switch (car) {
-                case '+':
-                    new = ast_node_oper(AST_OPER_KIND_ADD, op1, op2);
-                    break;
-                case '-':
-                    new = ast_node_oper(AST_OPER_KIND_SUB, op1, op2);
-                    break;
-                case '*':
-                    new = ast_node_oper(AST_OPER_KIND_MUL, op1, op2);
-                    break;
-                default:
-                    abort();
+            case '+':
+                new = ast_node_oper(AST_OPER_KIND_ADD, op1, op2);
+                break;
+            case '-':
+                new = ast_node_oper(AST_OPER_KIND_SUB, op1, op2);
+                break;
+            case '*':
+                new = ast_node_oper(AST_OPER_KIND_MUL, op1, op2);
+                break;
+            default:
+                abort();
             }
 
             if (new == NULL) {
                 ast_node_free(op1);
                 ast_node_free(op2);
             }
-        } else {
+        }
+        else {
             res.err = AST_PARSE_ERR_TOKEN;
             res.car = car;
             break;
@@ -977,7 +982,8 @@ struct ast_parse_result ast_parse(const char* text) {
     /* pas d'erreurs */
     if (res.err == AST_PARSE_ERR_OK) {
         res.node = stack_pop(nodes);
-    } else {
+    }
+    else {
         /* si il y a eu une erreur, on libère les noeuds restants */
         while ((node = stack_pop(nodes)) != NULL) {
             ast_node_free(node);
@@ -991,51 +997,51 @@ struct ast_parse_result ast_parse(const char* text) {
 
 void ast_parse_err_print(struct ast_parse_result res) {
     switch (res.err) {
-        case AST_PARSE_ERR_OK:
-            break;
-        case AST_PARSE_ERR_ALLOC:
-            puts("Erreur d'allocation lors de la construction de l'ASA.");
-            break;
-        case AST_PARSE_ERR_VARNAME:
-            puts("Les noms de variables doivent être d'un seul caractère entre a et z.");
-            break;
-        case AST_PARSE_ERR_MISSING_VARNAME:
-            puts("Nom de variable manquant dans l'assignation.");
-            break;
-        case AST_PARSE_ERR_TOKEN:
-            printf("La ligne contient un caractère invalide: %c.\n", res.car);
-            break;
-        case AST_PARSE_ERR_TOO_MANY_EXPR:
-            puts("La ligne entrée contient plus qu'une expression.");
-            break;
-        case AST_PARSE_ERR_TOO_LITTLE_OPER:
-            puts("L'opérateur nécessite plus d'opérandes.");
-            break;
-        default:
-            abort();
+    case AST_PARSE_ERR_OK:
+        break;
+    case AST_PARSE_ERR_ALLOC:
+        puts("Erreur d'allocation lors de la construction de l'ASA.");
+        break;
+    case AST_PARSE_ERR_VARNAME:
+        puts("Les noms de variables doivent être d'un seul caractère entre a et z.");
+        break;
+    case AST_PARSE_ERR_MISSING_VARNAME:
+        puts("Nom de variable manquant dans l'assignation.");
+        break;
+    case AST_PARSE_ERR_TOKEN:
+        printf("La ligne contient un caractère invalide: %c.\n", res.car);
+        break;
+    case AST_PARSE_ERR_TOO_MANY_EXPR:
+        puts("La ligne entrée contient plus qu'une expression.");
+        break;
+    case AST_PARSE_ERR_TOO_LITTLE_OPER:
+        puts("L'opérateur nécessite plus d'opérandes.");
+        break;
+    default:
+        abort();
     }
 }
 
 void ast_node_free(struct ast_node *node) {
     switch (node->kind) {
-        case AST_NODE_KIND_ASSIGN:
-            ast_node_free(node->assign->val);
-            free(node->assign);
-            break;
-        case AST_NODE_KIND_USE:
-            free(node->use);
-            break;
-        case AST_NODE_KIND_NUM:
-            num_decref(node->num->val);
-            free(node->num);
-            break;
-        case AST_NODE_KIND_OPER:
-            ast_node_free(node->oper->op1);
-            ast_node_free(node->oper->op2);
-            free(node->oper);
-            break;
-        default:
-            abort();
+    case AST_NODE_KIND_ASSIGN:
+        ast_node_free(node->assign->val);
+        free(node->assign);
+        break;
+    case AST_NODE_KIND_USE:
+        free(node->use);
+        break;
+    case AST_NODE_KIND_NUM:
+        num_decref(node->num->val);
+        free(node->num);
+        break;
+    case AST_NODE_KIND_OPER:
+        ast_node_free(node->oper->op1);
+        ast_node_free(node->oper->op2);
+        free(node->oper);
+        break;
+    default:
+        abort();
     }
     free(node);
 }
@@ -1049,58 +1055,58 @@ struct inter_eval_result inter_eval(struct inter *vm, struct ast_node *node) {
     struct inter_eval_result res;
 
     switch (node->kind) {
-        case AST_NODE_KIND_ASSIGN:
-            res = inter_eval(vm, node->assign->val);
-            if (res.err != INTER_EVAL_ERR_OK) return res;
-            inter_set_var(vm, node->assign->var, res.val);
-            val = res.val;
+    case AST_NODE_KIND_ASSIGN:
+        res = inter_eval(vm, node->assign->val);
+        if (res.err != INTER_EVAL_ERR_OK) return res;
+        inter_set_var(vm, node->assign->var, res.val);
+        val = res.val;
+        break;
+    case AST_NODE_KIND_USE:
+        val = inter_get_var(vm, node->assign->var);
+        if (val == NULL) {
+            res.err = INTER_EVAL_ERR_UNDEF_VAR;
+            res.var = node->assign->var;
+            return res;
+        }
+        break;
+    case AST_NODE_KIND_NUM:
+        val = node->num->val;
+        num_incref(val);
+        break;
+    case AST_NODE_KIND_OPER:
+        res = inter_eval(vm, node->oper->op1);
+        if (res.err != INTER_EVAL_ERR_OK) return res;
+        op1 = res.val;
+
+        res = inter_eval(vm, node->oper->op2);
+        if (res.err != INTER_EVAL_ERR_OK) return res;
+        op2 = res.val;
+
+        switch (node->oper->kind) {
+        case AST_OPER_KIND_ADD:
+            val = num_add(op1, op2);
             break;
-        case AST_NODE_KIND_USE:
-            val = inter_get_var(vm, node->assign->var);
-            if (val == NULL) {
-                res.err = INTER_EVAL_ERR_UNDEF_VAR;
-                res.var = node->assign->var;
-                return res;
-            }
+        case AST_OPER_KIND_SUB:
+            val = num_sub(op1, op2);
             break;
-        case AST_NODE_KIND_NUM:
-            val = node->num->val;
-            num_incref(val);
-            break;
-        case AST_NODE_KIND_OPER:
-            res = inter_eval(vm, node->oper->op1);
-            if (res.err != INTER_EVAL_ERR_OK) return res;
-            op1 = res.val;
-
-            res = inter_eval(vm, node->oper->op2);
-            if (res.err != INTER_EVAL_ERR_OK) return res;
-            op2 = res.val;
-
-            switch (node->oper->kind) {
-                case AST_OPER_KIND_ADD:
-                    val = num_add(op1, op2);
-                    break;
-                case AST_OPER_KIND_SUB:
-                    val = num_sub(op1, op2);
-                    break;
-                case AST_OPER_KIND_MUL:
-                    val = num_mul(op1, op2);
-                    break;
-                default:
-                    abort();
-            }
-
-            /* erreur dans l'allocation du nombre */
-            if (val == NULL) {
-                res.err = INTER_EVAL_ERR_ALLOC;
-                return res;
-            }
-
-            num_decref(op1);
-            num_decref(op2);
+        case AST_OPER_KIND_MUL:
+            val = num_mul(op1, op2);
             break;
         default:
             abort();
+        }
+
+        /* erreur dans l'allocation du nombre */
+        if (val == NULL) {
+            res.err = INTER_EVAL_ERR_ALLOC;
+            return res;
+        }
+
+        num_decref(op1);
+        num_decref(op2);
+        break;
+    default:
+        abort();
     }
 
     res.err = INTER_EVAL_ERR_OK;
@@ -1130,27 +1136,27 @@ void inter_set_var(struct inter *vm, char var, struct num *val) {
 }
 
 void inter_print_vars(struct inter *vm) {
-	int i;
-	for (i = 0; i < 26; i++) {
-		if (vm->vars[i] != NULL) {
-			num_print(vm->vars[i]);
-			printf(" = %d\n", i + 'a');
-		}
-	}
+    int i;
+    for (i = 0; i < 26; i++) {
+        if (vm->vars[i] != NULL) {
+            num_print(vm->vars[i]);
+            printf(" = %d\n", i + 'a');
+        }
+    }
 }
 
 void inter_eval_err_print(struct inter_eval_result res) {
     switch (res.err) {
-        case INTER_EVAL_ERR_OK:
-            break;
-        case INTER_EVAL_ERR_ALLOC:
-            puts("Erreur d'allocation lors de l'évaluation de l'ASA.");
-            break;
-        case INTER_EVAL_ERR_UNDEF_VAR:
-            printf("La variable '%c' n'a pas de valeur.\n", res.var);
-            break;
-        default:
-            abort();
+    case INTER_EVAL_ERR_OK:
+        break;
+    case INTER_EVAL_ERR_ALLOC:
+        puts("Erreur d'allocation lors de l'évaluation de l'ASA.");
+        break;
+    case INTER_EVAL_ERR_UNDEF_VAR:
+        printf("La variable '%c' n'a pas de valeur.\n", res.var);
+        break;
+    default:
+        abort();
     }
 }
 
@@ -1203,14 +1209,14 @@ struct read_line_result read_line() {
 }
 
 void figures_cleanup() {
-	for (int i = 0; i < 10; i++)
-	{
-		if (__figures[i] != NULL)
-		{
-			free(__figures[i]);
-			__figures[i] = NULL;
-		}
-	}
+    for (int i = 0; i < 10; i++)
+    {
+        if (__figures[i] != NULL)
+        {
+            free(__figures[i]);
+            __figures[i] = NULL;
+        }
+    }
 }
 
 int main(int argc, char **argv) {
@@ -1228,8 +1234,9 @@ int main(int argc, char **argv) {
         if (rres.err == READ_LINE_ERR_ALLOC) {
             puts("Erreur d'allocation lors de la lecture de la ligne.");
             continue;
-        /* EOF atteint */
-        } else if (rres.err == READ_LINE_ERR_EOF) {
+            /* EOF atteint */
+        }
+        else if (rres.err == READ_LINE_ERR_EOF) {
             putchar('\n');
             break;
         }
@@ -1238,8 +1245,9 @@ int main(int argc, char **argv) {
         /* si le contenu de le ligne est égal à "vars", on imprime la liste des variables */
         if (strcmp(rres.line, "vars") == 0) {
             inter_print_vars(&vm);
-        /* sinon on essaie d'analyser la chaîne de caractères */
-        } else if (len > 0) {
+            /* sinon on essaie d'analyser la chaîne de caractères */
+        }
+        else if (len > 0) {
             pres = ast_parse(rres.line);
 
             /* on regarde si le résultat est un erreur ou non */
@@ -1250,14 +1258,16 @@ int main(int argc, char **argv) {
                     num_print(eres.val);
                     /* on décrémente le nombre retourné */
                     num_decref(eres.val);
-                } else {
+                }
+                else {
                     /* si il y a une erreur, on affiche un message */
                     inter_eval_err_print(eres);
                 }
 
                 /* on libère l'espace utilisé par l'ASA */
                 ast_node_free(pres.node);
-            } else {
+            }
+            else {
                 /* si il y a une erreur, on affiche un message */
                 ast_parse_err_print(pres);
             }
@@ -1268,6 +1278,6 @@ int main(int argc, char **argv) {
 
     /* nettoyage final */
     inter_cleanup(&vm);
-	figures_cleanup();
+    figures_cleanup();
     return 0;
 }
