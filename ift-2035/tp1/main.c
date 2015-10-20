@@ -599,7 +599,9 @@ struct num* num_mul(struct num *a, struct num *b) {
         r = num_factorMul(a, d->val->val, pow);
         if (r == NULL)
         {
-            num_decref(resultat);
+            if (resultat != NULL) {
+                num_decref(resultat);
+            }
             return NULL;
         }
         if (resultat == NULL)
@@ -627,40 +629,19 @@ bool num_is_zero(struct num *n) {
 }
 
 void num_print(struct num *n) {
-    char *line = NULL, *tmp = NULL;
-    size_t size = 0, index = 0, buffer_size = 20;
     char c = '\0';
     struct digit *d = n->first;
-    int i;
 
+    if (n->isNeg) {
+        putchar('-');
+    }
     while (d != NULL) {
         c = d->val->val + '0';
-
-        /* Aggrandir le tableau si necessaire */
-        if (size <= index) {
-            size += buffer_size;
-            tmp = realloc(line, size);
-            if (!tmp) {
-                free(line);
-                line = NULL;
-                break;
-            }
-            line = tmp;
-        }
-
-        /* Actually store the thing. */
-        line[index++] = c;
+        putchar(c);
         d = d->next;
     }
-    line[index++] = '\0';
-    if (n->isNeg)
-    {
-        printf("-");
-    }
-    for (i = strlen(line) - 1; i >= 0; i--)
-        printf("%c", line[i]);
-    printf("\n");
-    free(line);
+
+    putchar('\n');
 }
 
 void num_incref(struct num *n) {
