@@ -15,17 +15,8 @@
 
 typedef enum { false, true } bool;
 
-//Représente un chiffre de 0 à 9
-struct figure
-{
-    unsigned int val : 4;
-};
-
-//Variable globale : contient les chiffres constants 0-9
-static struct figure *__figures[10];
-
 struct digit {
-    struct figure *val;
+    int val;
     struct digit *next;
 };
 
@@ -174,13 +165,9 @@ struct num* init_Num(bool, struct digit*);
 /*Initialise Num*/
 void dispose_Num(struct num*);
 /*libérer Num*/
-struct digit* init_Digit(struct figure*, struct digit*);
+struct digit* init_Digit(int val, struct digit*);
 /*Initialise Digit*/
 void dispose_Digit(struct digit*);
-/*Obtenir le chiffre selon un entier*/
-struct figure* figure_from_int(int);
-/*Obtenir le chiffre selon une chai*/
-struct figure* figure_from_str(char);
 /*Plus grand que pour 2 num*/
 bool num_gt(struct num*, struct num*);
 /*Multiplication d'un num par un facteur de 0-9*/
@@ -231,8 +218,6 @@ void inter_print_vars(struct inter*);
 void inter_eval_err_print(struct inter_eval_result res);
 /* libérer l'espace utilisé par les variables */
 void inter_cleanup(struct inter*);
-/*libérer les chiffres constants*/
-void figures_cleanup();
 
 /* lire une ligne de stdin */
 struct read_line_result read_line();
@@ -259,20 +244,6 @@ inline bool is_whitespace(char car) {
     return car == ' ' || car == '\t';
 }
 
-struct figure* figure_from_int(int val) {
-    if (__figures[val] == NULL)
-    {
-        struct figure *f = malloc(sizeof(struct figure));
-        if (f == NULL)
-            return NULL;
-        f->val = val;
-        __figures[val] = f;
-    }
-    return __figures[val];
-}
-struct figure* figure_from_str(char c) {
-    return figure_from_int(c - '0');
-}
 struct num* num_from_str(const char *text) {
     size_t i = strlen(text);
     size_t end = 0;
@@ -285,16 +256,13 @@ struct num* num_from_str(const char *text) {
     struct num* n = init_Num(isNeg, NULL);
     if (n == NULL)
     {
-        // TODO : Error Malloc
         return NULL;
     }
     struct digit *prev, *d;
     //initialiser le premier Digit
-    struct figure *f = figure_from_str(text[i - 1]);
-    d = prev = init_Digit(f, NULL);
+    d = prev = init_Digit(car_to_val(text[i - 1]), NULL);
     if (d == NULL)
     {
-        // TODO : Error Malloc
         dispose_Num(n);
         return NULL;
     }
@@ -302,11 +270,9 @@ struct num* num_from_str(const char *text) {
     i--;
     //initialiser le reste du Num, si necessaire
     for (; i >= end + 1; i--) {
-        f = figure_from_str(text[i - 1]);
-        d = init_Digit(f, NULL);
+        d = init_Digit(car_to_val(text[i - 1]), NULL);
         if (d == NULL)
         {
-            // TODO : Error Malloc
             dispose_Num(n);
             return NULL;
         }
@@ -320,7 +286,6 @@ struct num* init_Num(bool isNeg, struct digit* first) {
     struct num* n = malloc(sizeof(struct num));
     if (n == NULL)
     {
-        // TODO : Error Malloc
         return NULL;
     }
     n->isNeg = isNeg;
@@ -337,14 +302,13 @@ void dispose_Num(struct num* n) {
     }
     free(n);
 }
-struct digit* init_Digit(struct figure* f, struct digit* next) {
+struct digit* init_Digit(int val, struct digit* next) {
     struct digit* d = malloc(sizeof(struct digit));
     if (d == NULL)
     {
-        // TODO : Error Malloc
         return NULL;
     }
-    d->val = f;
+    d->val = val;
     d->next = next;
     return d;
 }
@@ -382,8 +346,8 @@ struct num* num_add(struct num *a, struct num *b) {
     struct digit *e = NULL;
     while (c != NULL && d != NULL)
     {
-        r = c->val->val + d->val->val + surplus;
-        e = init_Digit(figure_from_int(r % 10), NULL);
+        r = c->val + d->val + surplus;
+        e = init_Digit(r % 10, NULL);
         if (e == NULL)
         {
             num_decref(resultat);
@@ -399,8 +363,8 @@ struct num* num_add(struct num *a, struct num *b) {
     {
         while (c != NULL)
         {
-            r = c->val->val + surplus;
-            e = init_Digit(figure_from_int(r % 10), NULL);
+            r = c->val + surplus;
+            e = init_Digit(r % 10, NULL);
             if (e == NULL)
             {
                 num_decref(resultat);
@@ -416,8 +380,8 @@ struct num* num_add(struct num *a, struct num *b) {
     {
         while (d != NULL)
         {
-            r = d->val->val + surplus;
-            e = init_Digit(figure_from_int(r % 10), NULL);
+            r = d->val + surplus;
+            e = init_Digit(r % 10, NULL);
             if (e == NULL)
             {
                 num_decref(resultat);
@@ -431,7 +395,7 @@ struct num* num_add(struct num *a, struct num *b) {
     }
     if (surplus > 0)
     {
-        e = init_Digit(figure_from_int(surplus), NULL);
+        e = init_Digit(surplus, NULL);
         if (e == NULL)
         {
             num_decref(resultat);
@@ -448,8 +412,8 @@ bool num_gt(struct num *a, struct num *b) {
     bool isBigger = false;
     while (c != NULL && d != NULL)
     {
-        int n = c->val->val;
-        int m = d->val->val;
+        int n = c->val;
+        int m = d->val;
         if (n > m)
             isBigger = true;
         else if (m > n)
@@ -494,7 +458,7 @@ struct num* num_sub(struct num *a, struct num *b) {
     struct digit *lastNonZero = NULL;
     while (c != NULL && d != NULL)
     {
-        r = c->val->val - d->val->val - surplus;
+        r = c->val - d->val - surplus;
         if (r >= 0)
         {
             surplus = 0;
@@ -504,7 +468,11 @@ struct num* num_sub(struct num *a, struct num *b) {
             r += 10;
             surplus = 1;
         }
-        e = init_Digit(figure_from_int(r % 10), NULL);
+        e = init_Digit(r % 10, NULL);
+        if (e == NULL) {
+            num_decref(resultat);
+            return NULL;
+        }
         if (resultat->first == NULL) resultat->first = e; else cur->next = e;
         cur = e;
         c = c->next;
@@ -514,10 +482,14 @@ struct num* num_sub(struct num *a, struct num *b) {
     {
         while (c != NULL)
         {
-            r = c->val->val - surplus;
+            r = c->val - surplus;
             if (r >= 0) { surplus = 0; }
             else { r += 10; surplus = 1; }
-            e = init_Digit(figure_from_int(r % 10), NULL);
+            e = init_Digit(r % 10, NULL);
+            if (e == NULL) {
+                num_decref(resultat);
+                return NULL;
+            }
             lastNonZero = r == 0 ? lastNonZero : e;
             cur->next = e;
             cur = e;
@@ -549,7 +521,7 @@ struct num* num_factorMul(struct num *a, int f, size_t pow) {
     //Ajouter les zeros de puissance
     while (pow > 0)
     {
-        e = init_Digit(figure_from_int(0), NULL);
+        e = init_Digit(0, NULL);
         if (e == NULL)
         {
             num_decref(resultat);
@@ -563,8 +535,8 @@ struct num* num_factorMul(struct num *a, int f, size_t pow) {
     int r, surplus = 0;
     while (c != NULL)
     {
-        r = c->val->val * f + surplus;
-        e = init_Digit(figure_from_int(r % 10), NULL);
+        r = c->val * f + surplus;
+        e = init_Digit(r % 10, NULL);
         if (e == NULL)
         {
             num_decref(resultat);
@@ -577,7 +549,7 @@ struct num* num_factorMul(struct num *a, int f, size_t pow) {
     }
     if (surplus > 0)
     {
-        e = init_Digit(figure_from_int(surplus), NULL);
+        e = init_Digit(surplus, NULL);
         if (e == NULL)
         {
             num_decref(resultat);
@@ -596,7 +568,7 @@ struct num* num_mul(struct num *a, struct num *b) {
     struct num *tmpr = NULL;
     while (d != NULL)
     {
-        r = num_factorMul(a, d->val->val, pow);
+        r = num_factorMul(a, d->val, pow);
         if (r == NULL)
         {
             if (resultat != NULL) {
@@ -625,7 +597,7 @@ struct num* num_mul(struct num *a, struct num *b) {
 }
 
 bool num_is_zero(struct num *n) {
-    return n->first->val->val == 0 && n->first->next == NULL;
+    return n->first->val == 0 && n->first->next == NULL;
 }
 
 void num_print(struct num *n) {
@@ -636,7 +608,7 @@ void num_print(struct num *n) {
         putchar('-');
     }
     while (d != NULL) {
-        c = d->val->val + '0';
+        c = d->val + '0';
         putchar(c);
         d = d->next;
     }
@@ -1076,14 +1048,14 @@ struct inter_eval_result inter_eval(struct inter *vm, struct ast_node *node) {
             abort();
         }
 
+        num_decref(op1);
+        num_decref(op2);
+
         /* erreur dans l'allocation du nombre */
         if (val == NULL) {
             res.err = INTER_EVAL_ERR_ALLOC;
             return res;
         }
-
-        num_decref(op1);
-        num_decref(op2);
         break;
     default:
         abort();
@@ -1188,18 +1160,6 @@ struct read_line_result read_line() {
     return res;
 }
 
-void figures_cleanup() {
-    int i;
-    for (i = 0; i < 10; i++)
-    {
-        if (__figures[i] != NULL)
-        {
-            free(__figures[i]);
-            __figures[i] = NULL;
-        }
-    }
-}
-
 int main(int argc, char **argv) {
     struct inter vm;
     struct read_line_result rres;
@@ -1259,6 +1219,5 @@ int main(int argc, char **argv) {
 
     /* nettoyage final */
     inter_cleanup(&vm);
-    figures_cleanup();
     return 0;
 }
