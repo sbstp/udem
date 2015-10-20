@@ -1,4 +1,4 @@
-\documentclass[a4paper,12pt]{article}
+\documentclass[a4paper,12pt,french]{article}
 \RequirePackage[l2tabu, orthodox]{nag}
 \usepackage{setspace}
 \usepackage[margin=1in]{geometry}
@@ -9,6 +9,9 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern} % load a font with all the characters
+\usepackage{babel}
+\usepackage{courier}
+\usepackage{listings}
 
 %Assign document variables
 \date{\today}
@@ -32,6 +35,9 @@
 \fancyfoot[R]{\DateMMMMYYYY}
 \renewcommand{\footrulewidth}{0.4pt}% default is 0pt
 
+% code listings
+\lstset{language=C}
+\lstset{basicstyle=\footnotesize\ttfamily}
 
 \begin{document}
 \begin{titlepage}
@@ -44,7 +50,7 @@
 		\textsc{\LARGE \Author}\\[0.25cm]
 		\textsc{\normalsize (20018469)}\\[0.25cm]
 		\textsc{\LARGE \Authorr}\\[0.25cm]
-		\textsc{\normalsize (Ton Matricule)}\\[2.5cm]
+		\textsc{\normalsize (20031840)}\\[2.5cm]
 
 		\textsc{\normalsize Baccalauréat en informatique}\\
 		\textsc{\normalsize Faculté des arts et des sciences}\\[2.5cm]
@@ -59,23 +65,34 @@
 \section{Fonctionnement général du programme}
 
 \section{Résolution des problèmes}
-	\subsection{(a) Comment les nombres et variables sont représentés}
+	\renewcommand{\thesubsection}{(\alph{subsection})}
+
+	\subsection{Comment les nombres et variables sont représentés}
 		Les nombre est représentés selon une liste chaînée simple.
-		\[ struct\:num\:\{\:bool\:isNeg;\:struct\:digit*\:first;\:int\:refcount;\:\}; \]
-		\[ struct\:digit\:\{\:unsigned\:int\:val\::\:4;\:struct\:digit*\:next;\:\};\]
-		La structure \textit{num} représente la tête de la liste chaînée. elle contient le signe stocké dans un booléen, un boléen est notre structure personalisée représentant les valeurs "false"(0) or "true"(1) sur 1 bit, le premier \textit{digit} du nombre et un compteur de référence.(Plus de détails sur le compteur de référence dans la section 2. c). Les chiffres du nombre sont stockés dans un \textit{digit}. Le \textit{digit} est composée d'un eniter positif de taille 4 bit pour la valeur du chiffre et d'un pointeur vers le prochain chiffre. Les \textit{digits} sont stockés en ordre croissant de puissance.\\
+\begin{lstlisting}
+	struct num {
+	    bool isNeg;
+	    struct digit *first;
+	    int refcount;
+	};
+	struct digit {
+	    int val;
+	    struct digit *next;
+	};
+\end{lstlisting}
+		La structure \textit{num} représente la tête de la liste chaînée. elle contient le signe stocké dans un booléen, un boléen est notre structure personalisée représentant les valeurs \og false \fg{}(0) or \og true \fg{}(1) sur 1 bit, le premier \textit{digit} du nombre et un compteur de référence.(Plus de détails sur le compteur de référence dans la section 2. c). Les chiffres du nombre sont stockés dans un \textit{digit}. Le \textit{digit} est composée d'un eniter positif de taille 4 bit pour la valeur du chiffre et d'un pointeur vers le prochain chiffre. Les \textit{digits} sont stockés en ordre croissant de puissance.\\
 
-		Les variables sont réprésentés par un tableau de pointeur de \textit{num} stocké dans la structure \textit{inter} qui est fourni à l'ASA pour le calcul de la réponse. Avec les méthodes inter\_get\_var et inter\_set\_var, il est possible d'obtenir ou de stocker un \textit{num} à l'index de la lettre de la variable (où a=0,b=1,...,z=25)  en utilisant le compteur de référence. (Plus de détails sur le compteur de référence dans la section 2. c).
+		Les variables sont réprésentés par un tableau de pointeur de \textit{num} stocké dans la structure \textit{inter} qui est fourni à l'ASA pour le calcul de la réponse. Avec les méthodes \lstinline$inter_get_var$ et \lstinline$inter_set_var$, il est possible d'obtenir ou de stocker un \textit{num} à l'index de la lettre de la variable (où a=0,b=1,...,z=25)  en utilisant le compteur de référence. (Plus de détails sur le compteur de référence dans la section 2. c).
 
-	\subsection{(b) Comment se fait l’analyse de chaque ligne et le calcul de la réponse}
-		La fonction read\_line lit l'expression entrée par l'utilisateur un caractère à la fois,
+	\subsection{Comment se fait l’analyse de chaque ligne et le calcul de la réponse}
+		La fonction \lstinline$read_line$ lit l'expression entrée par l'utilisateur un caractère à la fois,
 		avec la fonction getchar. Si le caractère est EOF, on arrête la lecture et on retourne
 		une erreur signalant EOF. Le programme fera son nettoyage final et terminera. Tant que
 		le caractère n'est pas un saut de ligne, les caractères sont copiés dans un tableau
 		alloué avec malloc. Lorsque plus d'espace est nécessaire, le tableau est redimensionné.
 		Lorsque la fin de ligne et atteinte, on retourne la chaîne de caractères.\\
 
-		La chaîne est ensuite envoyée à la fonction ast\_parse qui utilise un tokenizer pour séparer
+		La chaîne est ensuite envoyée à la fonction \lstinline$ast_parse$ qui utilise un tokenizer pour séparer
 		les éléments du texte en fonction des espaces. Elle itère à travers les tokens et produit un
 		arbre de syntaxe abstraite. Elle utilise une pile pour empiler les opérandes, et en fonction
 		de l'arité du prochain élément, désempilera le nombre d'opérandes nécessaire. Un nouveau
@@ -86,17 +103,17 @@
 		contenues dans le texte reçu. On signale l'erreur. Si ce n'est pas le cas, on désempile le dernier
 		élément de la pile, on signale qu'il n'y a pas d'erreur et on obtient l'arbre complet.\\
 
-		La procédure appelant vérifie si ast\_parse a retourné une erreur. Si c'est le cas, on affiche
-		un message approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction inter\_eval qui évaluera
+		La procédure appelant vérifie si \lstinline$ast_parse$ a retourné une erreur. Si c'est le cas, on affiche
+		un message approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction \lstinline$inter_eval$ qui évaluera
 		l'expression. L'interprète parcourt l'arbre avec un algorithme récursif, effectue les opérations,
 		maintient la liste des variables, et retourne la valeur de l'expression. L'interprète peut aussi
 		retourner une erreur si l'allocation échoue ou si une variable indéfinie est utilisée. Si une erreur
 		survient, elle sera affichée. Si aucune erreur ne survient, la valeur retournée est affichée.
 		Finalement, la mémoire utilisé par l'ASA est libérée et on recommence la saisie.\\
 
-	\subsection{(c) Comment se fait la gestion de la mémoire}
+	\subsection{Comment se fait la gestion de la mémoire}
 		Les nombres utilisent un compteur de référence qui est maintenu manuellement. Grossièrement,
-		c'est l'équivalent d'un shared\_ptr C++. Les nombres sont créés lors de l'analyse de la
+		c'est l'équivalent d'un \lstinline$shared_ptr$ C++. Les nombres sont créés lors de l'analyse de la
 		ligne. Lorsque les nombres sont assignés à des variables, ont augmente le compteur de
 		référence. Lorsque l'ASA est libéré, on décrémente le compteur de référence des nombres.
 		Les nombres n'ayant pas été assignés à des variables seront donc libérés.\\
@@ -110,8 +127,8 @@
 		façon manuelle. Les erreurs d'allocation sont signalées par un pointeur NULL lorsque
 		possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
 		(Il y a plus de détails sur les erreurs dans la section 2. e) .\\
-	\subsection{(d) Comment les algorithmes d’addition, soustraction et multiplication sont implantés}
-		Les algorithmes d'addition, de soustraction et de multiplication utilise les algorithmes de calcul "naïfs".
+	\subsection{Comment les algorithmes d’addition, soustraction et multiplication sont implantés}
+		Les algorithmes d'addition, de soustraction et de multiplication utilise les algorithmes de calcul \og naïfs \fg{}.
 		Cependant, l'algorithme d'addition et de soustraction redirige le calcul si les nombres sont de signes opposés. Voici les quatre cas possibles où a est le terme de gauche et b le terme de droite.
 		\[ (1) : a + b \equiv a - -b\]
 		\[ (2) : a + -b \equiv a - b  \]
@@ -122,15 +139,15 @@
 		Les algorithmes d'addition et de soustraction calcule les \textit{digit} un à un avec la notion de surplus/retenue et complète le résultat avec les \textit{digits} restants, si nécesssaire. L'algortihme de soustraction, si nécessaire, supprime tous les zéros de puissance supérieur au \textit{digit} de plus grande puissance non-zéros (0000546 devient 546).\\
 
 		L'algorithme de multiplication itère sur les sommes de puissance de 10 de b (567 devient 500+60+7). Par la suite, il multiplie chaque puissance de 10 de b par a pour obtenir un résultat partiel. Finalement, il additionne toutes les sommes partielles pour obtenir le résultat final.
-	\subsection{(e) Comment se fait le traitement des erreurs}
-		Les erreurs sont représentées avec des types de données algébriques (aussi appelés  \"tagged union\"
-		ou \"variante\"), inspirés par la gestion d'erreur du langage Rust. Un enum est utilisé comme
+	\subsection{Comment se fait le traitement des erreurs}
+		Les erreurs sont représentées avec des types de données algébriques (aussi appelés  \og tagged union \fg{}
+		ou \og variante \fg{}), inspirés par la gestion d'erreur du langage Rust. Un enum est utilisé comme
 		discriminant et une structure composée du discriminant et d'une union est utilisée pour représenter
 		le résultat d'une opération pouvant échouer. L'union contient des données additionelles sur le
 		résultat.\\
 
-		Par exemple, le résultat produit par inter\_eval(...) est inter\_eval\_result. Le discriminant
-		est inter\_eval\_err et contient trois options: aucune erreur, erreur d'allocation, variable
+		Par exemple, le résultat produit par \lstinline$inter_eval$ est \lstinline$inter_eval_result$. Le discriminant
+		est \lstinline$inter_eval_err$ et contient trois options: aucune erreur, erreur d'allocation, variable
 		non définie. L'union du résultat contient 2 options: le nombre lorsqu'il n'y a pas d'erreur et
 		le nom de la variable lorsqu'une variable non définie est utilisée.\\
 
