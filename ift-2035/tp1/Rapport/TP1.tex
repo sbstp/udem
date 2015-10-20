@@ -56,109 +56,89 @@
 		\textsc{\normalsize \DateMMMMYYYY}\\[1.5cm]
 	\end{center}
 \end{titlepage}
-\section{CECI EST UNE SECTION }
-	\[Sum: S = A \bigoplus B\]
-	\[Carry: C_{out} = AB\]
-	\begin{tabular}{cc | cc}
-		A&B&$S$&$C_{out}$\\
-		\hline
-		0&0&0&0\\
-		0&1&1&0\\
-		1&0&1&0\\
-		1&1&0&1\\
-	\end{tabular}
+\section{Fonctionnement général du programme}
+
 \section{Résolution des problèmes}
-	\subsection{(b) comment se fait l’analyse de chaque ligne et le calcul de la réponse}
-	La fonction read\_line lit l'expression entrée par l'utilisateur un caractère à la fois,
-	avec la fonction getchar. Si le caractère est EOF, on arrête la lecture et on retourne
-	une erreur signalant EOF. Le programme fera son nettoyage final et terminera. Tant que
-	le caractère n'est pas un saut de ligne, les caractères sont copiés dans un tableau
-	alloué avec malloc. Lorsque plus d'espace est nécessaire, le tableau est redimensionné.
-	Lorsque la fin de ligne et atteinte, on retourne la chaîne de caractères.
+	\subsection{(a) Comment les nombres et variables sont représentés}
+		Les nombre est représentés selon une liste chaînée simple.
+		\[ struct\:num\:\{\:bool\:isNeg;\:struct\:digit*\:first;\:int\:refcount;\:\}; \]
+		\[ struct\:digit\:\{\:unsigned\:int\:val\::\:4;\:struct\:digit*\:next;\:\};\]
+		La structure \textit{num} représente la tête de la liste chaînée. elle contient le signe stocké dans un booléen, un boléen est notre structure personalisée représentant les valeurs "false"(0) or "true"(1) sur 1 bit, le premier \textit{digit} du nombre et un compteur de référence.(Plus de détails sur le compteur de référence dans la section 2. c). Les chiffres du nombre sont stockés dans un \textit{digit}. Le \textit{digit} est composée d'un eniter positif de taille 4 bit pour la valeur du chiffre et d'un pointeur vers le prochain chiffre. Les \textit{digits} sont stockés en ordre croissant de puissance.\\
 
-	La chaîne est ensuite envoyée à la fonction ast\_parse qui utilise un tokenizer pour séparer
-	les éléments du texte en fonction des espaces. Elle itère à travers les tokens et produit un
-	arbre de syntaxe abstraite. Elle utilise une pile pour empiler les opérandes, et en fonction
-	de l'arité du prochain élément, désempilera le nombre d'opérandes nécessaire. Un nouveau
-	noeud sera créé et empilé en fonction du type d'élément. Si le nombre d'opérandes requises
-	n'est pas disponible, une erreur est détectée. La procédure détecte les expressions malformées
-	et signale ces erreurs. Lorsque tous les éléments on étés analysés, on regarde la hauteur de
-	la pile. Si plus qu'un élément si trouve, cela veut dire que plusieurs expressions étaient
-	contenues dans le texte reçu. On signale l'erreur. Si ce n'est pas le cas, on désempile le dernier
-	élément de la pile, on signale qu'il n'y a pas d'erreur et on obtient l'arbre complet.
+		Les variables sont réprésentés par un tableau de pointeur de \textit{num} stocké dans la structure \textit{inter} qui est fourni à l'ASA pour le calcul de la réponse. Avec les méthodes inter\_get\_var et inter\_set\_var, il est possible d'obtenir ou de stocker un \textit{num} à l'index de la lettre de la variable (où a=0,b=1,...,z=25)  en utilisant le compteur de référence. (Plus de détails sur le compteur de référence dans la section 2. c).
 
-	La procédure appelant vérifie si ast\_parse a retourné une erreur. Si c'est le cas, on affiche
-	un message approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction inter\_eval qui évaluera
-	l'expression. L'interprète parcourt l'arbre avec un algorithme récursif, effectue les opérations,
-	maintient la liste des variables, et retourne la valeur de l'expression. L'interprète peut aussi
-	retourner une erreur si l'allocation échoue ou si une variable indéfinie est utilisée. Si une erreur
-	survient, elle sera affichée. Si aucune erreur ne survient, la valeur retournée est affichée.
-	Finalement, la mémoire utilisé par l'ASA est libérée et on recommence la saisie.
+	\subsection{(b) Comment se fait l’analyse de chaque ligne et le calcul de la réponse}
+		La fonction read\_line lit l'expression entrée par l'utilisateur un caractère à la fois,
+		avec la fonction getchar. Si le caractère est EOF, on arrête la lecture et on retourne
+		une erreur signalant EOF. Le programme fera son nettoyage final et terminera. Tant que
+		le caractère n'est pas un saut de ligne, les caractères sont copiés dans un tableau
+		alloué avec malloc. Lorsque plus d'espace est nécessaire, le tableau est redimensionné.
+		Lorsque la fin de ligne et atteinte, on retourne la chaîne de caractères.\\
 
-	\subsection{(c) comment se fait la gestion de la mémoire}
-	Les nombres utilisent un compteur de référence qui est maintenu manuellement. Grossièrement,
-	c'est l'équivalent d'un shared\_ptr C++. Les nombres sont créés lors de l'analyse de la
-	ligne. Lorsque les nombres sont assignés à des variables, ont augmente le compteur de
-	référence. Lorsque l'ASA est libéré, on décrémente le compteur de référence des nombres.
-	Les nombres n'ayant pas été assignés à des variables seront donc libérés.
+		La chaîne est ensuite envoyée à la fonction ast\_parse qui utilise un tokenizer pour séparer
+		les éléments du texte en fonction des espaces. Elle itère à travers les tokens et produit un
+		arbre de syntaxe abstraite. Elle utilise une pile pour empiler les opérandes, et en fonction
+		de l'arité du prochain élément, désempilera le nombre d'opérandes nécessaire. Un nouveau
+		noeud sera créé et empilé en fonction du type d'élément. Si le nombre d'opérandes requises
+		n'est pas disponible, une erreur est détectée. La procédure détecte les expressions malformées
+		et signale ces erreurs. Lorsque tous les éléments on étés analysés, on regarde la hauteur de
+		la pile. Si plus qu'un élément si trouve, cela veut dire que plusieurs expressions étaient
+		contenues dans le texte reçu. On signale l'erreur. Si ce n'est pas le cas, on désempile le dernier
+		élément de la pile, on signale qu'il n'y a pas d'erreur et on obtient l'arbre complet.\\
 
-	Les structures contenant des données allouées dynamiquement sont aussi allouées de cette
-	façon. Cela permet d'avoir d'une initialization complète et exhaustive des structures.
-	Si une erreur d'allocation survient, les allocations précédentes sont libérés, et il
-	n'existe donc pas d'objet dont l'état est incertain.
+		La procédure appelant vérifie si ast\_parse a retourné une erreur. Si c'est le cas, on affiche
+		un message approprié. Si ce n'est pas le cas, on envoie l'ASA à la fonction inter\_eval qui évaluera
+		l'expression. L'interprète parcourt l'arbre avec un algorithme récursif, effectue les opérations,
+		maintient la liste des variables, et retourne la valeur de l'expression. L'interprète peut aussi
+		retourner une erreur si l'allocation échoue ou si une variable indéfinie est utilisée. Si une erreur
+		survient, elle sera affichée. Si aucune erreur ne survient, la valeur retournée est affichée.
+		Finalement, la mémoire utilisé par l'ASA est libérée et on recommence la saisie.\\
 
-	L'entête <setjmp.h> n'étant pas permis, la gestion des erreurs d'allocation se fait de
-	façon manuelle. Les erreurs d'allocation sont signalées par un pointeur NULL lorsque
-	possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
-	Il y a plus de détails sur les erreurs dans la section 2. e) .
+	\subsection{(c) Comment se fait la gestion de la mémoire}
+		Les nombres utilisent un compteur de référence qui est maintenu manuellement. Grossièrement,
+		c'est l'équivalent d'un shared\_ptr C++. Les nombres sont créés lors de l'analyse de la
+		ligne. Lorsque les nombres sont assignés à des variables, ont augmente le compteur de
+		référence. Lorsque l'ASA est libéré, on décrémente le compteur de référence des nombres.
+		Les nombres n'ayant pas été assignés à des variables seront donc libérés.\\
 
-	\subsection{(e) comment se fait le traitement des erreurs}
-	Les erreurs sont représentées avec des types de données algébriques (aussi appelés  \"tagged union\"
-	ou \"variante\"), inspirés par la gestion d'erreur du langage Rust. Un enum est utilisé comme
-	discriminant et une structure composée du discriminant et d'une union est utilisée pour représenter
-	le résultat d'une opération pouvant échouer. L'union contient des données additionelles sur le
-	résultat.
+		Les structures contenant des données allouées dynamiquement sont aussi allouées de cette
+		façon. Cela permet d'avoir d'une initialization complète et exhaustive des structures.
+		Si une erreur d'allocation survient, les allocations précédentes sont libérés, et il
+		n'existe donc pas d'objet dont l'état est incertain.\\
 
-	Par exemple, le résultat produit par inter\_eval(...) est inter\_eval\_result. Le discriminant
-	est inter\_eval\_err et contient trois options: aucune erreur, erreur d'allocation, variable
-	non définie. L'union du résultat contient 2 options: le nombre lorsqu'il n'y a pas d'erreur et
-	le nom de la variable lorsqu'une variable non définie est utilisée.
+		L'entête <setjmp.h> n'étant pas permis, la gestion des erreurs d'allocation se fait de
+		façon manuelle. Les erreurs d'allocation sont signalées par un pointeur NULL lorsque
+		possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
+		(Il y a plus de détails sur les erreurs dans la section 2. e) .\\
+	\subsection{(d) Comment les algorithmes d’addition, soustraction et multiplication sont implantés}
+		Les algorithmes d'addition, de soustraction et de multiplication utilise les algorithmes de calcul "naïfs".
+		Cependant, l'algorithme d'addition et de soustraction redirige le calcul si les nombres sont de signes opposés. Voici les quatre cas possibles où a est le terme de gauche et b le terme de droite.
+		\[ (1) : a + b \equiv a - -b\]
+		\[ (2) : a + -b \equiv a - b  \]
+		\[ (3) : -a + b \equiv -(a-b) \]
+		\[ (4) : -a + -b \equiv -(a+b) \]
+		\\Par exemple, si l'algorithme doit traiter -12 + 15, alors l'algorithme redirige à l'algorithme de sosutraction le calcul 15 -12 à la place. Aussi, l'algoritme de soustraction inversera l'opération si $|a|$ < $|b|$ tq $-(b-a)$.\\
 
-	Les erreurs sont passées par copie car leur allocation ne doit pas échoucher, et que leur taille
-	est petite de toute façon.
+		Les algorithmes d'addition et de soustraction calcule les \textit{digit} un à un avec la notion de surplus/retenue et complète le résultat avec les \textit{digits} restants, si nécesssaire. L'algortihme de soustraction, si nécessaire, supprime tous les zéros de puissance supérieur au \textit{digit} de plus grande puissance non-zéros (0000546 devient 546).\\
 
-	Lorsque la boucle d'exécution reçoit un résultat qui est une erreur, le résultat est envoyé à la
-	fonction d'affichage appropriée. Cette dernière affichera l'erreur ainsi que les données additionelles
-	contenu par l'union. Si le résultat n'est pas une erreur, la boucle extrait les données dont elle
-	a besoin et continue sont travail.
+		L'algorithme de multiplication itère sur les sommes de puissance de 10 de b (567 devient 500+60+7). Par la suite, il multiplie chaque puissance de 10 de b par a pour obtenir un résultat partiel. Finalement, il additionne toutes les sommes partielles pour obtenir le résultat final.
+	\subsection{(e) Comment se fait le traitement des erreurs}
+		Les erreurs sont représentées avec des types de données algébriques (aussi appelés  \"tagged union\"
+		ou \"variante\"), inspirés par la gestion d'erreur du langage Rust. Un enum est utilisé comme
+		discriminant et une structure composée du discriminant et d'une union est utilisée pour représenter
+		le résultat d'une opération pouvant échouer. L'union contient des données additionelles sur le
+		résultat.\\
 
-\section{Preuve par induction}
-Étape de Base:\\
-	\[1^2 = \frac{(-1)^{1+1}1(1+1)}{2} = \frac{1\bullet 1 (2)}{2} = 1\]
-Étape Inductive:\\
-	Supposons que le formule est vrai pour $n$.\\
-	Prouvons que c'est aussi vrai pour $n+1$.
-	\[1^2 - 2^2 + 3^2 - ... + (-1)^{n+1}n^2 + (-1)^{n+2}(n+1)^2 = \frac{(-1)^{n+1}n(n+1)}{2}  + (-1)^{n+1+1}(n+1)^2 \]
-	\[= \frac{(-1)^{n+1}n(n+1)}{2}  + \frac{2(-1)^{n+1+1}(n+1)^2}{2}\]
-	\[= \frac{(-1)^{n+1}n(n+1)}{2}  + \frac{2\bullet-1(-1)^{n+1}(n+1)^2}{2}\]
-	\[= \frac{(-1)^{n+1}n(n+1)  -2(-1)^{n+1}(n+1)^2}{2}\]
-	\[= \frac{(-1)^{n+1}(n+1)(n  -2(n+1))}{2}\]
-	\[= \frac{(-1)^{n+1}(n+1)(-n-2)}{2}\]
-	\[= \frac{(-1)^{n+1}(n+1) -1 (n+2)}{2}\]
-	\[= \frac{(-1)^{n+2}(n+1)(n+2)}{2}\]
-	Alors, la formule est vrai $n+1$ et donc, $1^2 - 2^2 + 3^2 - ... + (-1)^{n+1}n^2 = \frac{(-1)^{n+1}n(n+1)}{2}$
-\section{Théorème 1}
-	Soit
-	\[A = \{a, b, c\}\]
-	\[X = P(A)\]
-	\[x R y \leftrightarrow x \subseteq y \]
-	\[ x < y \leftrightarrow x \subset y  \]
-	Prouver que $ x < y \leftrightarrow x \ngeq y$\\
-	\linebreak
-	\[ x < y \Longrightarrow x \subset y\]
-	\[ \Longrightarrow \exists a \in y , a \notin x \]
-	\[ \Longrightarrow y \not \subseteq x \]
-	\[ \Longrightarrow y \not\leq x \]
-\newpage
+		Par exemple, le résultat produit par inter\_eval(...) est inter\_eval\_result. Le discriminant
+		est inter\_eval\_err et contient trois options: aucune erreur, erreur d'allocation, variable
+		non définie. L'union du résultat contient 2 options: le nombre lorsqu'il n'y a pas d'erreur et
+		le nom de la variable lorsqu'une variable non définie est utilisée.\\
 
+		Les erreurs sont passées par copie car leur allocation ne doit pas échoucher, et que leur taille
+		est petite de toute façon.\\
+
+		Lorsque la boucle d'exécution reçoit un résultat qui est une erreur, le résultat est envoyé à la
+		fonction d'affichage appropriée. Cette dernière affichera l'erreur ainsi que les données additionelles
+		contenu par l'union. Si le résultat n'est pas une erreur, la boucle extrait les données dont elle
+		a besoin et continue sont travail.
 \end{document}
