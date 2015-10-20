@@ -17,6 +17,8 @@
 #include <string.h>
 #include <time.h>
 
+int numcount = 0;
+
 void* maybe_malloc(size_t len, int line) {
     if ((rand() % 100) < 1) {
         printf("Bad alloc at %d\n", line);
@@ -304,6 +306,7 @@ struct num *init_Num(bool isNeg, struct digit *first) {
     n->isNeg = isNeg;
     n->first = first;
     n->refcount = 1;
+    numcount++;
     return n;
 }
 void dispose_Num(struct num *n) {
@@ -313,6 +316,7 @@ void dispose_Num(struct num *n) {
         dispose_Digit(d);
         d = cur;
     }
+    numcount--;
     free(n);
 }
 struct digit *init_Digit(int val, struct digit *next) {
