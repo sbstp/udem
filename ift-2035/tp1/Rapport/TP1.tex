@@ -87,9 +87,9 @@
 	    struct digit *next;
 	};
 \end{lstlisting}
-		La structure \textit{num} représente la tête de la liste chaînée. elle contient le signe stocké dans un booléen, un boléen est notre structure personalisée représentant les valeurs \og false \fg{}(0) or \og true \fg{}(1) sur 1 bit, le premier \textit{digit} du nombre et un compteur de référence.(Plus de détails sur le compteur de référence dans la section 2. c). Les chiffres du nombre sont stockés dans un \textit{digit}. Le \textit{digit} est composée d'un eniter positif de taille 4 bit pour la valeur du chiffre et d'un pointeur vers le prochain chiffre. Les \textit{digits} sont stockés en ordre croissant de puissance.\\
+		La structure \textit{num} représente la tête de la liste chaînée. Elle contient le signe stocké dans un booléen, un booléen est notre structure personalisée représentant les valeurs \og false \fg{}(0) or \og true \fg{}(1), le premier \textit{digit} du nombre et un compteur de références. (Plus de détails sur le compteur de références dans la section 2. c). Les chiffres du nombre sont stockés dans un \textit{digit}. Le \textit{digit} est composé d'un eniter positif de taille 4 bit pour la valeur du chiffre et d'un pointeur vers le prochain chiffre. Les \textit{digits} sont stockés en ordre croissant de puissance.\\
 
-		Les variables sont réprésentés par un tableau de pointeur de \textit{num} stocké dans la structure \textit{inter} qui est fourni à l'ASA pour le calcul de la réponse. Avec les méthodes \lstinline$inter_get_var$ et \lstinline$inter_set_var$, il est possible d'obtenir ou de stocker un \textit{num} à l'index de la lettre de la variable (où a=0,b=1,...,z=25)  en utilisant le compteur de référence. (Plus de détails sur le compteur de référence dans la section 2. c).
+		Les variables sont réprésentés par un tableau de pointeur de \textit{num} stocké dans la structure \textit{inter} qui est fourni à l'ASA pour le calcul de la réponse. Avec les méthodes \lstinline$inter_get_var$ et \lstinline$inter_set_var$, il est possible d'obtenir ou de stocker un \textit{num} à l'index de la lettre de la variable (où a=0,b=1,...,z=25)  en utilisant le compteur de références. (Plus de détails sur le compteur de références dans la section 2. c).
 
 	\subsection{Comment se fait l’analyse de chaque ligne et le calcul de la réponse}
 		La fonction \lstinline$read_line$ lit l'expression entrée par l'utilisateur un caractère à la fois,
@@ -135,15 +135,15 @@
 		possible. Quand ça n'est pas possible, on utilise plustôt un code d'erreur approprié.
 		(Il y a plus de détails sur les erreurs dans la section 2. e) .\\
 	\subsection{Comment les algorithmes d’addition, soustraction et multiplication sont implantés}
-		Les algorithmes d'addition, de soustraction et de multiplication utilise les algorithmes de calcul \og naïfs \fg{}.
-		Cependant, l'algorithme d'addition et de soustraction redirige le calcul si les nombres sont de signes opposés. Voici les quatre cas possibles où a est le terme de gauche et b le terme de droite.
+		Les algorithmes d'addition, de soustraction et de multiplication utilisent des algorithmes de calcul \og naïfs \fg{}.
+		Cependant, les algorithmes d'addition et de soustraction redirigent le calcul si les nombres sont de signes opposés. Voici les quatre cas possibles où \textit{a} est le terme de gauche et \textit{b} le terme de droite.
 		\[ (1) : a + b \equiv a - -b\]
 		\[ (2) : a + -b \equiv a - b  \]
 		\[ (3) : -a + b \equiv -(a-b) \]
 		\[ (4) : -a + -b \equiv -(a+b) \]
-		\\Par exemple, si l'algorithme doit traiter -12 + 15, alors l'algorithme redirige à l'algorithme de sosutraction le calcul 15 -12 à la place. Aussi, l'algoritme de soustraction inversera l'opération si $|a|$ < $|b|$ tq $-(b-a)$.\\
+		\\Par exemple, si l'algorithme d'addition doit traiter -12 + 15, il redirige le calcul 15 - 12 à l'algorithme de soustraction. Aussi, l'algoritme de soustraction inversera l'opération si $|a|$ < $|b|$ tq $-(b-a)$.\\
 
-		Les algorithmes d'addition et de soustraction calcule les \textit{digit} un à un avec la notion de surplus/retenue et complète le résultat avec les \textit{digits} restants, si nécesssaire. L'algortihme de soustraction, si nécessaire, supprime tous les zéros de puissance supérieur au \textit{digit} de plus grande puissance non-zéros (0000546 devient 546).\\
+		Les algorithmes d'addition et de soustraction calculent les \textit{digits} un à un avec la notion de surplus/retenue et complètent le résultat avec les \textit{digits} restants, si nécesssaire. L'algortihme de soustraction, si nécessaire, supprime tous les zéros de puissance supérieure au \textit{digit} de plus grande puissance non-zéros (0000546 devient 546).\\
 
 		L'algorithme de multiplication itère sur les sommes de puissance de 10 de b (567 devient 500+60+7). Par la suite, il multiplie chaque puissance de 10 de b par a pour obtenir un résultat partiel. Finalement, il additionne toutes les sommes partielles pour obtenir le résultat final.
 	\subsection{Comment se fait le traitement des erreurs}
