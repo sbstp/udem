@@ -9,10 +9,13 @@
 *
 */
 
+/* commenter cette ligne pour désactiver les tests */
+//#define TEST
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define Test 1
+
 typedef enum { false, true } bool;
 
 struct digit {
@@ -1175,8 +1178,10 @@ struct read_line_result read_line() {
     return res;
 }
 
+#ifndef TEST
+
+/* main principale */
 int main(int argc, char **argv) {
-#if Test < 1
     struct inter vm;
     struct read_line_result rres;
     struct ast_parse_result pres;
@@ -1236,12 +1241,19 @@ int main(int argc, char **argv) {
     /* nettoyage final */
     inter_cleanup(&vm);
     return 0;
-#else
-    return testMain(argc, argv);
-#endif
 }
 
-/* Implemantations */
+#endif
+
+//==============================================================================
+//
+// Tests unitaires
+//
+//==============================================================================
+
+#ifdef TEST
+
+/* Implementations */
 bool num_eq(struct num* a, struct num* b) {
     if (a->isNeg != b->isNeg)
         return false;
@@ -1356,8 +1368,6 @@ bool assert(char* line, struct num* expected, struct inter* vm) {
 void testNum(struct inter vm) {
     struct num* expected = NULL;
     struct num* actual = NULL;
-    struct num* op1 = NULL;
-    struct num* op2 = NULL;
     //Test num creation
     //positive number size 1
     printf("Testing : Num Creation positive size 1\n");
@@ -1536,7 +1546,7 @@ void testSub(struct inter vm) {
     assert("1 10 -", op1, &vm);
     num_decref(expected);
     num_decref(op1);
-    //Negative 
+    //Negative
     printf("Testing : -1981 -132 -\n");
     expected = num_from_str("-1849");
     op1 = num_from_str("-1981");
@@ -1651,7 +1661,6 @@ void testMul(struct inter vm) {
 
 void testRef(struct inter vm) {
     struct num* expected = NULL;
-    struct num* actual = NULL;
     struct num* op1 = NULL;
     struct num* op2 = NULL;
     //Test Ref Variables
@@ -1707,10 +1716,9 @@ void testRef(struct inter vm) {
 
 void testPDF(struct inter vm) {
     struct num* expected = NULL;
-    struct num* actual = NULL;
     struct num* op1 = NULL;
     struct num* op2 = NULL;
-    //Test PDF 
+    //Test PDF
     //> 10 15 + 2 * => expect 50
     expected = num_from_str("50");
     assert("10 15 + 2 *", expected, &vm);
@@ -1808,7 +1816,9 @@ void testPDF(struct inter vm) {
     num_decref(op2);
 }
 
-int testMain(int argc, char **argv) {
+
+/* main pour les tests unitaires */
+int main(int argc, char **argv) {
     struct inter vm;
     memset(&vm, 0, sizeof(struct inter));
     testNum(vm);
@@ -1823,3 +1833,5 @@ int testMain(int argc, char **argv) {
     inter_cleanup(&vm);
     return 0;
 }
+
+#endif
