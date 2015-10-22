@@ -18,7 +18,7 @@
 \author{Kevin Belisle \& Simon Bernier St-Pierre}
 \title{TP1}
 \newcommand{\Teacher}{Marc Feeley}
-\newcommand{\ClassNum}{IFT2035}
+\newcommand{\ClassNum}{IFT-2035}
 \newcommand{\ClassName}{Concepts des langages de programmation}
 \newcommand{\DateMMMMYYYY}{Octobre 2015}
 \newcommand{\Author}{Kevin Belisle}
@@ -63,7 +63,11 @@
 	\end{center}
 \end{titlepage}
 \section{Fonctionnement général du programme}
+\subsection{Trace du programme}
+La calculatrice se divise, dans l'ordre, en 7 états : Attente de l'entrée de l'utilisateur, Analyse de la ligne d'entrée, Préparation au calcul, Calcul, Sortie. Ces états se répeteront jusqu'à temps que l'utilisateur ferme la calculatrice.\\
 
+Une fois la calculatrice initialisée, la calculatrice attends que l'utilisateur lui donne une commande à résoudre. Une fois la commande entrée, la calculatrice lit cette ligne, valide la syntaxe de la commande, analyse la commande et établi la liste des actions à effectuer (additionner, assigner,créer un nombre,etc..). Si une erreur survient lors de l'étape précédente, la calulatrice affiche le message d'erreur approprié et retourne à son état initial. Par la suite, la calculatrice alternera entre préparation au calcul et calcul jusqu'à temps que la liste d'actions soit vide ou qu'une erreur survienne. Si une erreur survient, la calculatrice retourne à son état initial. Finalement, la calculatrice affichera le résultat et retourne à son état initial.
+\newpage
 \section{Résolution des problèmes}
 	\renewcommand{\thesubsection}{(\alph{subsection})}
 
