@@ -64,9 +64,9 @@
 \end{titlepage}
 \section{Fonctionnement général du programme}
 	\subsection{Trace du programme}
-	La calculatrice se divise, dans l'ordre, en 5 états : Attente de l'entrée de l'utilisateur, Analyse de la ligne d'entrée, Préparation au calcul, Calcul, Sortie. Ces états se répeteront jusqu'à temps que l'utilisateur ferme la calculatrice.\\
+	La calculatrice se divise, dans l'ordre, en 4 étapes : attente de l'entrée de l'utilisateur, analyse et validation de la ligne entrée, évalutation de l'expression et finalement, affichage du résultat. Ces états se répéteront jusqu'à temps que l'utilisateur ferme la calculatrice.\\
 
-	Une fois la calculatrice initialisée, elle attend que l'utilisateur lui donne une commande à résoudre. Une fois la commande entrée, la calculatrice lit cette ligne, valide la syntaxe de la commande, analyse la commande et construit un arbre de syntaxe abstraire (additionner,  assigner, créer un nombre, etc.). Si une erreur survient lors de l'étape précédente, la calulatrice affiche le message d'erreur approprié et retourne à son état initial. Sinon, la calculatrice envoie l'arbre de syntaxe abstraite à l'interprèteur qui évaluera l'expression. Si une erreur survient, la calculatrice affiche un message d'erreur et retourne à son état initial. Si aucune erreur ne survient, la calculatrice affiche le résultat et retourne à son état initial.
+	Une fois la calculatrice initialisée, elle attend que l'utilisateur lui donne une commande à résoudre. Une fois la commande entrée, la calculatrice valide la syntaxe de la commande, analyse la commande et construit un arbre de syntaxe abstraire (additionner,  assigner, créer un nombre, etc.). Si une erreur survient lors de l'étape précédente, la calulatrice affiche le message d'erreur approprié et retourne à son état initial. Sinon, la calculatrice envoie l'arbre de syntaxe abstraite à l'interprèteur qui évaluera l'expression. Si une erreur survient, la calculatrice affiche un message d'erreur et retourne à son état initial. Si aucune erreur ne survient, la calculatrice affiche le résultat et retourne à son état initial.
 	\subsection{Instructions de compilation}
 	Le programme a été testé sur Windows et Linux. Le programme devrait compiler
 	sans erreurs et sans avertissements sur Linux. La version du standard C
