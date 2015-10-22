@@ -6,3 +6,8 @@ release:
 
 rapport:
 	pdflatex -interaction=nonstopmode -halt-on-error Rapport/TP1.tex
+
+format:
+	$(eval TMPFILE := $(shell mktemp))
+	clang-format-3.6 main.c > $(TMPFILE)
+	cp $(TMPFILE) main.c
