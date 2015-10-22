@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#define Test 1
 typedef enum { false, true } bool;
 
 struct digit {
@@ -477,6 +477,7 @@ struct num* num_sub(struct num *a, struct num *b) {
             return NULL;
         }
         if (resultat->first == NULL) resultat->first = e; else cur->next = e;
+        lastNonZero = r == 0 ? lastNonZero : e;
         cur = e;
         c = c->next;
         d = d->next;
@@ -515,7 +516,7 @@ struct num* num_sub(struct num *a, struct num *b) {
 }
 
 struct num* num_factorMul(struct num *a, int f, size_t pow) {
-    struct num *resultat = init_Num(a->isNeg, NULL);
+    struct num *resultat = init_Num(0, NULL);
     if (resultat == NULL)
         return NULL;
     struct digit *c = a->first;
@@ -596,6 +597,7 @@ struct num* num_mul(struct num *a, struct num *b) {
         d = d->next;
         pow++;
     }
+    resultat->isNeg = a->isNeg != b->isNeg;
     return resultat;
 }
 
@@ -1174,6 +1176,7 @@ struct read_line_result read_line() {
 }
 
 int main(int argc, char **argv) {
+#if Test < 1
     struct inter vm;
     struct read_line_result rres;
     struct ast_parse_result pres;
@@ -1231,6 +1234,592 @@ int main(int argc, char **argv) {
     }
 
     /* nettoyage final */
+    inter_cleanup(&vm);
+    return 0;
+#else
+    return testMain(argc, argv);
+#endif
+}
+
+/* Implemantations */
+bool num_eq(struct num* a, struct num* b) {
+    if (a->isNeg != b->isNeg)
+        return false;
+    struct digit *c = a->first;
+    struct digit *d = b->first;
+    while (c != NULL && d != NULL) {
+        if (c->val != d->val)
+            return false;
+        c = c->next;
+        d = d->next;
+    }
+    if (c != NULL || d != NULL)
+        return false;
+    return true;
+}
+
+bool assertVarRef(char varName, struct num* expected, int expectedRefCount, struct inter* vm) {
+    struct num* actual = inter_get_var(vm, varName);
+    bool assert = false;
+    printf("  Var Value Check (%c)\n", varName);
+    if (num_eq(expected, actual))
+    {
+        printf("    Passed\n");
+        printf("  Var Ref Check (%c)\n", varName);
+        if (actual->refcount - 1 == expectedRefCount)//Exclude the ref from the test
+        {
+            printf("    Passed");
+            assert = true;
+        }
+        else
+        {
+            printf("    Failed, Expected => %i, Actual => %i", expectedRefCount, actual->refcount - 1);
+        }
+    }
+    else
+    {
+        printf("    Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    num_decref(actual);
+    printf("\n");
+    return assert;
+}
+
+bool assertVar(char varName, struct num* expected, struct inter* vm) {
+    struct num* actual = inter_get_var(vm, varName);
+    bool assert = false;
+    printf("  Var Value Check (%c)\n", varName);
+    if (num_eq(expected, actual))
+    {
+        printf("    Passed");
+        assert = true;
+    }
+    else
+    {
+        printf("    Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    num_decref(actual);
+    printf("\n");
+    return assert;
+}
+
+bool assert(char* line, struct num* expected, struct inter* vm) {
+    struct ast_parse_result pres;
+    struct inter_eval_result eres;
+    bool assert = false;
+    printf("Testing : %s\n", line);
+    pres = ast_parse(line);
+    /* on regarde si le résultat est un erreur ou non */
+    if (pres.err == AST_PARSE_ERR_OK) {
+        eres = inter_eval(vm, pres.node);
+        /* on regarde si le résultat est un erreur ou non */
+        if (eres.err == INTER_EVAL_ERR_OK) {
+            assert = num_eq(expected, eres.val);
+            /* on décrémente le nombre retourné */
+            if (assert)
+            {
+                printf("  Passed");
+            }
+            else
+            {
+                printf("  Failed, Expected => ");
+                num_print(expected);
+                printf(", Actual => ");
+                num_print(eres.val);
+            }
+            num_decref(eres.val);
+        }
+        else {
+            /* si il y a une erreur, on affiche un message */
+            printf("  ");
+            inter_eval_err_print(eres);
+        }
+
+        /* on libère l'espace utilisé par l'ASA */
+        ast_node_free(pres.node);
+    }
+    else {
+        /* si il y a une erreur, on affiche un message */
+        printf("  ");
+        ast_parse_err_print(pres);
+    }
+    printf("\n");
+    return assert;
+}
+
+void testNum(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test num creation
+    //positive number size 1
+    printf("Testing : Num Creation positive size 1\n");
+    expected = init_Num(false, NULL);
+    expected->first = init_Digit(1, NULL);
+    actual = num_from_str("1");
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(expected);
+    //positive number size 2+
+    printf("Testing : Num Creation positive size 2+\n");
+    expected = init_Num(false, NULL);
+    expected->first = init_Digit(1, init_Digit(2, init_Digit(3, init_Digit(4, init_Digit(9, NULL)))));
+    actual = num_from_str("94321");
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(expected);
+    //negative number size 1
+    printf("Testing : Num Creation negative size 1\n");
+    expected = init_Num(true, NULL);
+    expected->first = init_Digit(1, NULL);
+    actual = num_from_str("-1");
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(expected);
+    //negative number size 2+
+    printf("Testing : Num Creation negative size 2+\n");
+    expected = init_Num(true, NULL);
+    expected->first = init_Digit(1, init_Digit(2, init_Digit(3, init_Digit(4, init_Digit(9, NULL)))));
+    actual = num_from_str("-94321");
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(expected);
+}
+
+void testAdd(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test ADD
+    //test commutativité
+    expected = num_from_str("1");
+    assert("1 0 +", expected, &vm);
+    assert("0 1 +", expected, &vm);
+    num_decref(expected);
+    //test difference puissance 1
+    expected = num_from_str("11");
+    assert("10 1 +", expected, &vm);
+    assert("1 10 +", expected, &vm);
+    num_decref(expected);
+    //test difference puissance 2+
+    expected = num_from_str("12477");
+    assert("12345 132 +", expected, &vm);
+    assert("132 12345 +", expected, &vm);
+    num_decref(expected);
+    //Surplus
+    expected = num_from_str("10");
+    assert("9 1 +", expected, &vm);
+    assert("1 9 +", expected, &vm);
+    num_decref(expected);
+    //Negative
+    printf("Testing : -13345 -6655 +\n");
+    expected = num_from_str("-20000");
+    op1 = num_from_str("-13345");
+    op2 = num_from_str("-6655");
+    actual = num_add(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+    //Test redirection Sub
+    printf("Testing : -123 1000 +\n");
+    expected = num_from_str("877");
+    op1 = num_from_str("-123");
+    op2 = num_from_str("1000");
+    actual = num_add(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+}
+
+void testSub(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test Sub
+    //test difference puissance 1
+    expected = num_from_str("10");
+    assert("11 1 -", expected, &vm);
+    op1 = num_from_str("-10");
+    assert("1 11 -", op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //test difference puissance 2+
+    expected = num_from_str("12213");
+    assert("12345 132 -", expected, &vm);
+    op1 = num_from_str("-12213");
+    assert("132 12345 -", op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //Retenue
+    expected = num_from_str("9");
+    assert("10 1 -", expected, &vm);
+    op1 = num_from_str("-9");
+    assert("1 10 -", op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //Negative 
+    printf("Testing : -1981 -132 -\n");
+    expected = num_from_str("-1849");
+    op1 = num_from_str("-1981");
+    op2 = num_from_str("-132");
+    actual = num_sub(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+    //Test redirection ADD
+    printf("Testing : -123 1000 -\n");
+    expected = num_from_str("-1123");
+    op1 = num_from_str("-123");
+    op2 = num_from_str("1000");
+    actual = num_sub(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+}
+
+void testMul(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test Mul
+    //test commutativité
+    expected = num_from_str("6");
+    assert("2 3 *", expected, &vm);
+    assert("3 2 *", expected, &vm);
+    num_decref(expected);
+    //test Élément neutre
+    expected = num_from_str("9");
+    assert("9 1 *", expected, &vm);
+    assert("1 9 *", expected, &vm);
+    num_decref(expected);
+    //test Élément absorbant
+    expected = num_from_str("0");
+    assert("9 0 *", expected, &vm);
+    assert("0 9 *", expected, &vm);
+    num_decref(expected);
+    //Negative
+    printf("Testing : -13 12 *\n");
+    expected = num_from_str("-156");
+    op1 = num_from_str("-13");
+    op2 = num_from_str("12");
+    actual = num_mul(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+    //double negative
+    printf("Testing : -13 -12 *\n");
+    expected = num_from_str("156");
+    op1 = num_from_str("-13");
+    op2 = num_from_str("-12");
+    actual = num_mul(op1, op2);
+    if (num_eq(expected, actual))
+    {
+        printf("  Passed");
+    }
+    else
+    {
+        printf("  Failed, Expected => ");
+        num_print(expected);
+        printf(", Actual => ");
+        num_print(actual);
+    }
+    printf("\n");
+    num_decref(actual);
+    num_decref(op1);
+    num_decref(op2);
+    num_decref(expected);
+}
+
+void testRef(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test Ref Variables
+    //> 1000 =x =y, expect 1000, x= 1000, y= 1000
+    expected = num_from_str("1000");
+    op1 = num_from_str("500");
+    op2 = num_from_str("0");
+    assert("1000 =x =y", expected, &vm);
+    dispose_Num(expected);
+    expected = inter_get_var(&vm, 'x');
+    assertVarRef('x', expected, 3, &vm);
+    assertVarRef('y', expected, 3, &vm);
+    //> 500 =y, expect 500, x=1000, y=500
+    assert("500 =y", op1, &vm);
+    dispose_Num(op1);
+    op1 = inter_get_var(&vm, 'y');
+    assertVarRef('x', expected, 2, &vm);
+    assertVarRef('y', op1, 2, &vm);
+    //> 0 =x, expect 0, x=0, y=500
+    assert("0 =x", op2, &vm);
+    dispose_Num(op2);
+    op2 = inter_get_var(&vm, 'x');
+    assertVarRef('x', op2, 2, &vm);
+    assertVarRef('y', op1, 2, &vm);
+    //Check final refcount, expecting 1000 => 0, 500 => 1, 0 => 1
+    printf("Checking Final Var Refcount");
+    printf("\n  1000 => ");
+    if (expected->refcount - 1 == 0)
+        printf("Passed");
+    else
+    {
+        printf("Failed, Expected => 0, Actual => %i", expected->refcount - 1);
+    }
+    printf("\n  500 => ");
+    if (op1->refcount - 1 == 1)
+        printf("Passed");
+    else
+    {
+        printf("Failed, Expected => 1, Actual => %i", op1->refcount - 1);
+    }
+    printf("\n  0 => ");
+    if (op2->refcount - 1 == 1)
+        printf("Passed");
+    else
+    {
+        printf("Failed, Expected => 1, Actual => %i", op2->refcount - 1);
+    }
+    dispose_Num(expected);
+    dispose_Num(op1);
+    dispose_Num(op2);
+    printf("\n");
+}
+
+void testPDF(struct inter vm) {
+    struct num* expected = NULL;
+    struct num* actual = NULL;
+    struct num* op1 = NULL;
+    struct num* op2 = NULL;
+    //Test PDF 
+    //> 10 15 + 2 * => expect 50
+    expected = num_from_str("50");
+    assert("10 15 + 2 *", expected, &vm);
+    num_decref(expected);
+    //> 100 =a => expect 100, a= 100
+    expected = num_from_str("100");
+    assert("100 =a", expected, &vm);
+    assertVar('a', expected, &vm);
+    num_decref(expected);
+    //> a 1 + => expect 101, a= 100
+    expected = num_from_str("101");
+    op1 = num_from_str("100");//Used as var a
+    assert("a 1 +", expected, &vm);
+    assertVar('a', op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //> 1 1 + 1 - 48 * => expect 48, a= 100
+    expected = num_from_str("48");
+    op1 = num_from_str("100");//Used as var a
+    assert("1 1 + 1 - 48 *", expected, &vm);
+    assertVar('a', op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //> 1000 1000 * =a => expect 1000000, a= 1000000
+    expected = num_from_str("1000000");
+    op1 = num_from_str("1000000");//Used as var a
+    assert("1000 1000 * =a", expected, &vm);
+    assertVar('a', op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //> 1 a - => expect -999999, a= 1000000
+    expected = num_from_str("-999999");
+    op1 = num_from_str("1000000");//Used as var a
+    assert("1 a -", expected, &vm);
+    assertVar('a', op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //> a 1 + =a => expect 1000001, a= 1000001
+    expected = num_from_str("1000001");
+    op1 = num_from_str("1000001");//Used as var a
+    assert("a 1 + =a", expected, &vm);
+    assertVar('a', op1, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    //> a 1 * =b => expect 1000001, a= 1000001, b= 1000001
+    expected = num_from_str("1000001");
+    op1 = num_from_str("1000001");//Used as var a
+    op2 = num_from_str("1000001");//Used as var b
+    assert("a 1 * =b", expected, &vm);
+    assertVar('a', op1, &vm);
+    assertVar('b', op2, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    num_decref(op2);
+    //> 1001 =b => expect 1001, a= 1000001, b= 1001
+    expected = num_from_str("1001");
+    op1 = num_from_str("1000001");//Used as var a
+    op2 = num_from_str("1001");//Used as var b
+    assert("1001 =b", expected, &vm);
+    assertVar('a', op1, &vm);
+    assertVar('b', op2, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    num_decref(op2);
+    //> b 100 + =b => expect 1101, a= 1000001, b= 1101
+    expected = num_from_str("1101");
+    op1 = num_from_str("1000001");//Used as var a
+    op2 = num_from_str("1101");//Used as var b
+    assert("b 100 + =b", expected, &vm);
+    assertVar('a', op1, &vm);
+    assertVar('b', op2, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    num_decref(op2);
+    //> b b b b * * * => expect 1469431264401, a= 1000001, b= 1101
+    expected = num_from_str("1469431264401");
+    op1 = num_from_str("1000001");//Used as var a
+    op2 = num_from_str("1101");//Used as var b
+    assert("b b b b * * *", expected, &vm);
+    assertVar('a', op1, &vm);
+    assertVar('b', op2, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    num_decref(op2);
+    //> 1000 =b 1000 * =c => expect 1000000, a= 1000001, b= 1000, c= 1000000
+    expected = num_from_str("1000000");
+    op1 = num_from_str("1000001");//Used as var a
+    op2 = num_from_str("1000");//Used as var b
+    assert("1000 =b 1000 * =c", expected, &vm);
+    assertVar('a', op1, &vm);
+    assertVar('b', op2, &vm);
+    assertVar('c', expected, &vm);
+    num_decref(expected);
+    num_decref(op1);
+    num_decref(op2);
+}
+
+int testMain(int argc, char **argv) {
+    struct inter vm;
+    memset(&vm, 0, sizeof(struct inter));
+    testNum(vm);
+    testAdd(vm);
+    testSub(vm);
+    testMul(vm);
+    testRef(vm);
+    testPDF(vm);
+    //Fin
+    printf("\nFin des tests. Appuyer sur une touche pour continuer...");
+    getchar();
     inter_cleanup(&vm);
     return 0;
 }
