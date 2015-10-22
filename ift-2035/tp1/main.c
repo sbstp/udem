@@ -9,7 +9,7 @@
 *
 */
 
-/* commenter cette ligne pour désactiver les tests */
+/* (dé)commenter cette ligne pour (dés)activer les tests */
 //#define TEST
 
 #include <stdio.h>
@@ -665,7 +665,7 @@ struct tokenizer *tokenizer_new(const char *src) {
     tkzer->pos = 0;
     tkzer->len = strlen(src);
     tkzer->src = src;
-    /* en créant un charbuff de la taille de src, on s'assure
+    /* en créant un bloc de la taille de src, on s'assure
      * qu'il n'y aura pas de réallocation dans tokenizer_next. */
     tkzer->buff = malloc(sizeof(char) * tkzer->len + 1);
     if (tkzer->buff == NULL) {
