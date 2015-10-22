@@ -65,6 +65,7 @@ enum ast_parse_err {
     AST_PARSE_ERR_TOKEN,
     AST_PARSE_ERR_TOO_MANY_EXPR,
     AST_PARSE_ERR_TOO_LITTLE_OPER,
+    AST_PARSE_ERR_INVALID_NUMBER,
 };
 
 struct ast_node_assign {
@@ -154,6 +155,8 @@ struct num* num_sub(struct num*, struct num*);
 struct num* num_mul(struct num*, struct num*);
 /* vérifie si le nombre est zéro */
 bool num_is_zero(struct num*);
+/* imprimer un chiffre du nombre */
+void num_print_digit(struct digit*);
 /* imprimer le nombre */
 void num_print(struct num*);
 /* incrémenter le compteur de référence */
@@ -600,18 +603,19 @@ bool num_is_zero(struct num *n) {
     return n->first->val == 0 && n->first->next == NULL;
 }
 
-void num_print(struct num *n) {
-    char c = '\0';
-    struct digit *d = n->first;
+void num_print_digit(struct digit *d) {
+    if (d->next != NULL) {
+        num_print_digit(d->next);
+    }
+    putchar(val_to_car(d->val));
+}
 
+void num_print(struct num *n) {
     if (n->isNeg) {
         putchar('-');
     }
-    while (d != NULL) {
-        c = d->val + '0';
-        putchar(c);
-        d = d->next;
-    }
+
+    num_print_digit(n->first);
 
     putchar('\n');
 }
@@ -808,6 +812,7 @@ struct ast_node* ast_node_oper(enum ast_oper_kind kind, struct ast_node* op1, st
 
 struct ast_parse_result ast_parse(const char* text) {
     char car;
+    int i;
     struct ast_parse_result res;
     struct ast_node *node, *new, *op1, *op2;
     struct stack *nodes;
@@ -869,7 +874,12 @@ struct ast_parse_result ast_parse(const char* text) {
         }
         else if (is_digit(car)) {
             /* num */
-            /* TODO validate digit */
+            for (i = 1; i < tok.len; i++) {
+                if (!is_digit(tok.text[i])) {
+                    res.err = AST_PARSE_ERR_INVALID_NUMBER;
+                    break;
+                }
+            }
             new = ast_node_num(tok.text);
         }
         else if (car == '+' || car == '-' || car == '*') {
@@ -968,6 +978,9 @@ void ast_parse_err_print(struct ast_parse_result res) {
         break;
     case AST_PARSE_ERR_TOO_LITTLE_OPER:
         puts("L'opérateur nécessite plus d'opérandes.");
+        break;
+    case AST_PARSE_ERR_INVALID_NUMBER:
+        puts("Un nombre invalide a été entré.");
         break;
     default:
         abort();
