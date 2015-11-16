@@ -22,36 +22,27 @@
 ;;; fonctions ne doivent pas faire d'affichage car c'est la fonction
 ;;; "repl" qui se charge de cela.
 
-; 214
-; 999
-
+; effectue une opération avec reste en utilisant le modulo et le quotient.
 (define (op-rem op c c1 c2)
   (let ((r (op c c1 c2)))
     (cons (modulo r 10) (quotient r 10))))
 
+; si x est null, retourne 0, sinon (car x)
 (define (car-or-0 x)
   (if (null? x) 0 (car x)))
 
+; si x est null, retourne '(), sinon (cdr x)
 (define (cdr-or-null x)
   (if (null? x) '() (cdr x)))
 
-;;; extrait un chiffre ou 0 des nombres et le reste des listes ou '()
+; extrait un chiffre ou 0 des nombres et le reste des listes ou '()
+; appelle f avec les données extraites
 (define (extract a b f)
   (f (car-or-0 a) (cdr-or-null a) (car-or-0 b) (cdr-or-null b)))
 
-(define (add a b)
-  ;;; étape récursive
-  (define (loop c a b)
-    (if (and (null? a) (null? b))
-      (if (zero? c) '() (cons c '()))
-      (extract a b (lambda (ca la cb lb)
-        (let ((r (op-rem + c ca cb)))
-          (cons (car r) (loop (cdr r) la lb)))))))
-  (loop 0 a b))
-
-; TODO meilleur implémentation
+; compare deux nombres positifs
 ; retourne 'eq si a = b, 'lt si a < b et 'gt si a > b
-(define (cmp na nb)
+(define (cmp-raw na nb)
   (define (impl na nb)
     (if (and (null? na) (null? nb))
       'eq
@@ -65,7 +56,37 @@
       ((> lna lnb) 'gt)
       (else (impl (reverse na) (reverse nb))))))
 
-(define (sub a b)
+; effectue une addition sur deux nombres positifs
+(define (add-raw a b)
+  (define (loop c a b)
+    (if (and (null? a) (null? b))
+      (if (zero? c) '() (cons c '()))
+      (extract a b (lambda (ca la cb lb)
+        (let ((r (op-rem + c ca cb)))
+          (cons (car r) (loop (cdr r) la lb)))))))
+  (loop 0 a b))
+
+; effectue une addition sur n'importe quel nombre
+(define (add a b)
+  (let ((sa (car a))
+    (sb (car b)))
+      (if (equal? sa sb)
+        (if (equal? sa 'pos)
+          (cons 'pos (add-raw (cdr a) (cdr b)))
+          (cons 'neg (add-raw (cdr a) (cdr b))))
+        (if (equal? sa 'pos)
+          (sub a (cons 'pos (cdr b)))
+          (sub b (cons 'pos (cdr a)))))))
+
+; effectue une soustraction sur deux nombres positifs
+; a doit être supérieur a b
+(define (sub-raw a b)
+  (define (trim l)
+    (if (null? l)
+      '(0)
+      (if (zero? (car l))
+        (trim (cdr l))
+        l)))
   (define (loop c a b)
     (if (and (null? a) (null? b)) '()
       (extract a b (lambda (ca la cb lb)
@@ -73,28 +94,80 @@
           (if (< r cb)
             (cons (- (+ r 10) cb) (loop 1 la lb))
             (cons (- r cb) (loop 0 la lb))))))))
-  (if (eq? (cmp a b) 'lt)
-    (loop 0 b a)
-    (loop 0 a b)))
+  (reverse (trim (reverse (loop 0 a b)))))
 
+; effectue une soustraction sur n'importe quel nombre
+(define (sub a b)
+  (define (switch n)
+    (if (equal? (car n) 'pos)
+      (cons 'neg (cdr n))
+      (cons 'pos (cdr n))))
+  (define (impl a b)
+    (let ((r (cmp-raw a b)))
+      (cond ((equal? r 'lt) (cons 'neg (sub-raw b a)))
+        ((equal? r 'gt) (cons 'pos (sub-raw a b)))
+        ((equal? r 'eq) (cons 'pos '(0))))))
+  (let ((sa (car a))
+    (sb (car b)))
+      (if (equal? sa sb)
+        (if (equal? sa 'pos)
+          (impl (cdr a) (cdr b))
+          (switch (impl (cdr a) (cdr b))))
+        (if (equal? sa 'pos)
+          (cons 'pos (add-raw (cdr a) (cdr b)))
+          (cons 'neg (add-raw (cdr a) (cdr b)))))))
+
+; affiche un nombre à l'écran
 (define (display-num n)
-  (if (null? n)
-    (void)
-    ((lambda (n)
-      (display-num (cdr n))
-      (display (car n)))
-          n)))
+  (define (inner n)
+    (if (null? n)
+      (void)
+      ((lambda (n)
+        (inner (cdr n))
+        (display (car n)))
+            n)))
+  (if (eq? (car n) 'neg)
+    (display "-"))
+  (inner (cdr n)))
 
-(define traiter
-  (lambda (expr dict)
-    (cons (append (string->list "*** le programme est ")
-                  '(#\I #\N #\C #\O #\M #\P #\L #\E #\T #\! #\newline)
-                  (string->list "*** la requete lue est: ")
-                  expr
-                  (string->list "\n*** nombre de caractères: ")
-                  (string->list (number->string (length expr)))
-                  '(#\newline))
-          dict)))
+(define (traiter expr dict)
+  (cons (append (string->list "*** le programme est ")
+                '(#\I #\N #\C #\O #\M #\P #\L #\E #\T #\! #\newline)
+                (string->list "*** la requete lue est: ")
+                expr
+                (string->list "\n*** nombre de caractères: ")
+                (string->list (number->string (length expr)))
+                '(#\newline))
+        dict))
+
+;;;----------------------------------------------------------------------------
+;;; Tests unitaires
+(define (assert-eq d a b)
+  (define (error)
+    (display "Erreur dans ")
+    (display d)
+    (display " : ")
+    (display a)
+    (display " != ")
+    (display b)
+    (newline))
+  (if (equal? a b)
+    (void)
+    (error)))
+
+(define (test)
+  ; addition
+  (assert-eq "15 + 10" (add '(pos 5 1) '(pos 0 1)) '(pos 5 2))
+  (assert-eq "-15 + 10" (add '(neg 5 1) '(pos 0 1)) '(neg 5))
+  (assert-eq "15 + -10" (add '(pos 5 1) '(neg 0 1)) '(pos 5))
+  (assert-eq "-15 + -10" (add '(neg 5 1) '(neg 0 1)) '(neg 5 2))
+  ; soustraction
+  (assert-eq "15 - 10" (sub '(pos 5 1) '(pos 0 1)) '(pos 5))
+  (assert-eq "-15 - 10" (sub '(neg 5 1) '(pos 0 1)) '(neg 5 2))
+  (assert-eq "15 - -10" (sub '(pos 5 1) '(neg 0 1)) '(pos 5 2))
+  (assert-eq "-15 - -10" (sub '(neg 5 1) '(neg 0 1)) '(neg 5))
+
+  (display "Test terminé\n"))
 
 ;;;----------------------------------------------------------------------------
 
