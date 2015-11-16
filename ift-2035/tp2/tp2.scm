@@ -147,6 +147,22 @@
         (token (cdr lst) (append tok (list (car lst))) tokens))))
   (whitespace lst '()))
 
+(define (node-new tag args)
+  (cons tag args))
+
+(define (node-tag node)
+  (car node))
+
+(define (node-args node)
+  (cdr node))
+
+(define (eval node)
+  (let ((tag (node-tag node))
+    (args (node-args node)))
+      (cond ((equal? tag 'num) args)
+        ((equal? tag 'add) (+ (eval (car args)) (eval (cdr args))))
+        ((equal? tag 'sub) (- (eval (car args)) (eval (cdr args)))))))
+
 (define (traiter expr dict)
   (cons (append (string->list "*** le programme est ")
                 '(#\I #\N #\C #\O #\M #\P #\L #\E #\T #\! #\newline)
@@ -188,6 +204,10 @@
   (assert-eq "tokens simple" (tokens (string->list "4 4 +")) '((#\4) (#\4) (#\+)))
   (assert-eq "tokens espaces superflues" (tokens (string->list "  4  4  +  ")) '((#\4) (#\4) (#\+)))
   (assert-eq "tokens long" (tokens (string->list "4 =x =y")) '((#\4) (#\= #\x) (#\= #\y)))
+  ; eval
+  (assert-eq "eval simple add" (eval '(add (num . 4) . (num . 4))) 8)
+  (assert-eq "eval simple sub" (eval '(sub (num . 4) . (num . 4))) 0)
+  (assert-eq "eval long" (eval '(add (add (num . 4) . (num . 4)) . (num . 4))) 12)
 
   (display "Tests terminés\n"))
 
