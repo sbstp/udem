@@ -130,6 +130,23 @@
     (display "-"))
   (inner (cdr n)))
 
+; sépare une liste de caratères en liste de mots (sépare sur les espaces)
+; supprime aussi les espaces superflues
+(define (tokens lst)
+  (define (whitespace lst tokens)
+    (if (null? lst)
+      tokens
+      (if (equal? (car lst) #\space)
+        (whitespace (cdr lst) tokens)
+        (token lst '() tokens))))
+  (define (token lst tok tokens)
+    (if (null? lst)
+      (append tokens (list tok))
+      (if (equal? (car lst) #\space)
+        (whitespace lst (append tokens (list tok)))
+        (token (cdr lst) (append tok (list (car lst))) tokens))))
+  (whitespace lst '()))
+
 (define (traiter expr dict)
   (cons (append (string->list "*** le programme est ")
                 '(#\I #\N #\C #\O #\M #\P #\L #\E #\T #\! #\newline)
@@ -144,9 +161,9 @@
 ;;; Tests unitaires
 (define (assert-eq d a b)
   (define (error)
-    (display "Erreur dans ")
+    (display "Erreur dans '")
     (display d)
-    (display " : ")
+    (display "' : ")
     (display a)
     (display " != ")
     (display b)
@@ -156,6 +173,7 @@
     (error)))
 
 (define (test)
+  (display "Format: actuel != attendu\n")
   ; addition
   (assert-eq "15 + 10" (add '(pos 5 1) '(pos 0 1)) '(pos 5 2))
   (assert-eq "-15 + 10" (add '(neg 5 1) '(pos 0 1)) '(neg 5))
@@ -166,8 +184,12 @@
   (assert-eq "-15 - 10" (sub '(neg 5 1) '(pos 0 1)) '(neg 5 2))
   (assert-eq "15 - -10" (sub '(pos 5 1) '(neg 0 1)) '(pos 5 2))
   (assert-eq "-15 - -10" (sub '(neg 5 1) '(neg 0 1)) '(neg 5))
+  ; tokens
+  (assert-eq "tokens simple" (tokens (string->list "4 4 +")) '((#\4) (#\4) (#\+)))
+  (assert-eq "tokens espaces superflues" (tokens (string->list "  4  4  +  ")) '((#\4) (#\4) (#\+)))
+  (assert-eq "tokens long" (tokens (string->list "4 =x =y")) '((#\4) (#\= #\x) (#\= #\y)))
 
-  (display "Test terminé\n"))
+  (display "Tests terminés\n"))
 
 ;;;----------------------------------------------------------------------------
 
