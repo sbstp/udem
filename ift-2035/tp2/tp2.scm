@@ -156,6 +156,47 @@
 (define (node-args node)
   (cdr node))
 
+(define (parse lst)
+  ; construit un noeud à partir d'opérandes
+  ; '(tag (op1 . op2))
+  (define (parse-oper tag)
+    (lambda (tok tokens ast)
+      (if (null? ast)
+        'err-op
+        (if (null? (cdr ast))
+          'err-op
+          (let* ((op1 (car ast))
+            (op2 (cadr ast))
+            (node (node-new tag (cons op2 op1))))
+              (dispatch (cdr tokens) (cons node (cddr ast))))))))
+  ; '(num . val)
+  (define (parse-num tok tokens ast)
+    (dispatch (cdr tokens) (cons (node-new 'num (string->number (list->string tok))) ast)))
+  (define ftbl (list
+      (cons #\+ (parse-oper 'add))
+      (cons #\- (parse-oper 'sub))
+      (cons #\0 parse-num)
+      (cons #\1 parse-num)
+      (cons #\2 parse-num)
+      (cons #\3 parse-num)
+      (cons #\4 parse-num)
+      (cons #\5 parse-num)
+      (cons #\6 parse-num)
+      (cons #\7 parse-num)
+      (cons #\8 parse-num)
+      (cons #\9 parse-num)
+    ))
+  (define (dispatch tokens ast)
+    (if (null? tokens)
+      ast
+      (let* (
+        (tok (car tokens))
+        (kv (assoc (car tok) ftbl)))
+        (if kv
+          ((cdr kv) tok tokens ast)
+          'erreur))))
+  (dispatch (tokens lst) '()))
+
 (define (eval node)
   (let ((tag (node-tag node))
     (args (node-args node)))
@@ -164,13 +205,9 @@
         ((equal? tag 'sub) (- (eval (car args)) (eval (cdr args)))))))
 
 (define (traiter expr dict)
-  (cons (append (string->list "*** le programme est ")
-                '(#\I #\N #\C #\O #\M #\P #\L #\E #\T #\! #\newline)
-                (string->list "*** la requete lue est: ")
-                expr
-                (string->list "\n*** nombre de caractères: ")
-                (string->list (number->string (length expr)))
-                '(#\newline))
+  (cons (append
+          (string->list (number->string (eval (car (parse expr)))))
+          '(#\newline))
         dict))
 
 ;;;----------------------------------------------------------------------------
