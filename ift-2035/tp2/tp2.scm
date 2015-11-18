@@ -117,19 +117,6 @@
           (cons 'pos (add-raw (cdr a) (cdr b)))
           (cons 'neg (add-raw (cdr a) (cdr b)))))))
 
-; affiche un nombre à l'écran
-(define (display-num n)
-  (define (inner n)
-    (if (null? n)
-      (void)
-      ((lambda (n)
-        (inner (cdr n))
-        (display (car n)))
-            n)))
-  (if (eq? (car n) 'neg)
-    (display "-"))
-  (inner (cdr n)))
-
 ; sépare une liste de caratères en liste de mots (sépare sur les espaces)
 ; supprime aussi les espaces superflues
 (define (tokens lst)
@@ -147,44 +134,79 @@
         (token (cdr lst) (append tok (list (car lst))) tokens))))
   (whitespace lst '()))
 
+; créer un nouveau noeud de l'ast
 (define (node-new tag args)
   (cons tag args))
 
+; obtenir le tag d'un noeud
 (define (node-tag node)
   (car node))
 
+; obtenir les arguments d'un noeud
 (define (node-args node)
   (cdr node))
 
-(define (parse lst)
+; convertir un caractère en chiffre
+(define (char-to-digit c)
+  (- (char->integer c) (char->integer #\0)))
+
+; convertir un chiffre en caractères
+(define (digit-to-char d)
+  (integer->char (+ (char->integer #\0) d)))
+
+; convertit une liste de caractères en nombre
+(define (parse-num str)
+  (define (loop str num)
+    (if (null? str)
+      (cons 'pos num)
+      (let ((c (car str)))
+        (if (char-numeric? c)
+          (loop (cdr str) (cons (char-to-digit c) num))
+          'err-invalid-num))))
+  (loop str '()))
+
+; convertit un nombre en liste de caractères
+(define (format-num n)
+  (define (loop n lst)
+    (if (null? n)
+      lst
+      (loop (cdr n) (cons (digit-to-char (car n)) lst))))
+  (if (eq? (car n) 'neg)
+    (cons #\- (loop (cdr n) '()))
+    (loop (cdr n) '())))
+
+(define (parse-expr lst)
   ; construit un noeud à partir d'opérandes
   ; '(tag (op1 . op2))
   (define (parse-oper tag)
     (lambda (tok tokens ast)
       (if (null? ast)
-        'err-op
+        'err-not-enough-op
         (if (null? (cdr ast))
-          'err-op
+          'err-not-enough-op
           (let* ((op1 (car ast))
             (op2 (cadr ast))
             (node (node-new tag (cons op2 op1))))
               (dispatch (cdr tokens) (cons node (cddr ast))))))))
   ; '(num . val)
-  (define (parse-num tok tokens ast)
-    (dispatch (cdr tokens) (cons (node-new 'num (string->number (list->string tok))) ast)))
+  (define (num tok tokens ast)
+    (let ((r (parse-num tok)))
+      (if (symbol? r)
+        r
+        (dispatch (cdr tokens) (cons (node-new 'num r) ast)))))
   (define ftbl (list
       (cons #\+ (parse-oper 'add))
       (cons #\- (parse-oper 'sub))
-      (cons #\0 parse-num)
-      (cons #\1 parse-num)
-      (cons #\2 parse-num)
-      (cons #\3 parse-num)
-      (cons #\4 parse-num)
-      (cons #\5 parse-num)
-      (cons #\6 parse-num)
-      (cons #\7 parse-num)
-      (cons #\8 parse-num)
-      (cons #\9 parse-num)
+      (cons #\0 num)
+      (cons #\1 num)
+      (cons #\2 num)
+      (cons #\3 num)
+      (cons #\4 num)
+      (cons #\5 num)
+      (cons #\6 num)
+      (cons #\7 num)
+      (cons #\8 num)
+      (cons #\9 num)
     ))
   (define (dispatch tokens ast)
     (if (null? tokens)
@@ -194,21 +216,29 @@
         (kv (assoc (car tok) ftbl)))
         (if kv
           ((cdr kv) tok tokens ast)
-          'erreur))))
-  (dispatch (tokens lst) '()))
+          'err-invalid-symbol))))
+  (let ((r (dispatch (tokens lst) '())))
+    (if (symbol? r)
+      r
+      (if (> (length r) 1)
+        'err-too-many-expr
+        (car r)))))
 
 (define (eval node)
   (let ((tag (node-tag node))
     (args (node-args node)))
       (cond ((equal? tag 'num) args)
-        ((equal? tag 'add) (+ (eval (car args)) (eval (cdr args))))
-        ((equal? tag 'sub) (- (eval (car args)) (eval (cdr args)))))))
+        ((equal? tag 'add) (add (eval (car args)) (eval (cdr args))))
+        ((equal? tag 'sub) (sub (eval (car args)) (eval (cdr args)))))))
 
 (define (traiter expr dict)
-  (cons (append
-          (string->list (number->string (eval (car (parse expr)))))
-          '(#\newline))
-        dict))
+  (if (null? expr)
+    (cons '(#\newline) dict)
+    (cons (append
+            (format-num (eval (parse-expr expr)))
+            '(#\newline))
+          dict)))
+
 
 ;;;----------------------------------------------------------------------------
 ;;; Tests unitaires
@@ -241,10 +271,25 @@
   (assert-eq "tokens simple" (tokens (string->list "4 4 +")) '((#\4) (#\4) (#\+)))
   (assert-eq "tokens espaces superflues" (tokens (string->list "  4  4  +  ")) '((#\4) (#\4) (#\+)))
   (assert-eq "tokens long" (tokens (string->list "4 =x =y")) '((#\4) (#\= #\x) (#\= #\y)))
+  ; char-to-digit
+  (assert-eq "char-to-digit" (char-to-digit #\2) 2)
+  ; digit-to-char
+  (assert-eq "digit-to-char" (digit-to-char 2) #\2)
+  ; parse-num
+  (assert-eq "parse-num" (parse-num (string->list "123")) '(pos 3 2 1))
+  (assert-eq "parse-num invalid data" (parse-num (string->list "1a23")) 'err-invalid-num)
+  ; format-num
+  (assert-eq "format-num pos" (format-num '(pos 3 2 1)) '(#\1 #\2 #\3))
+  (assert-eq "format-num neg" (format-num '(neg 3 2 1)) '(#\- #\1 #\2 #\3))
+  ; parse-expr
+  (assert-eq "parse-expr invalid num" (parse-expr (string->list "4a33")) 'err-invalid-num)
+  (assert-eq "parse-expr too many expr" (parse-expr (string->list "4 4 + 4")) 'err-too-many-expr)
+  (assert-eq "parse-expr not enough op" (parse-expr (string->list "4 +")) 'err-not-enough-op)
+  (assert-eq "parse-expr invalid symbol" (parse-expr (string->list "a")) 'err-invalid-symbol)
   ; eval
-  (assert-eq "eval simple add" (eval '(add (num . 4) . (num . 4))) 8)
-  (assert-eq "eval simple sub" (eval '(sub (num . 4) . (num . 4))) 0)
-  (assert-eq "eval long" (eval '(add (add (num . 4) . (num . 4)) . (num . 4))) 12)
+  (assert-eq "eval simple add" (eval '(add (num . (pos 4)) . (num . (pos 4)))) '(pos 8))
+  (assert-eq "eval simple sub" (eval '(sub (num . (pos 4)) . (num . (pos 4)))) '(pos 0))
+  (assert-eq "eval long" (eval '(add (add (num . (pos 4)) . (num . (pos 4))) . (num . (pos 4)))) '(pos 2 1))
 
   (display "Tests terminés\n"))
 
