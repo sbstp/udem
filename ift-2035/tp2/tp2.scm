@@ -154,6 +154,10 @@
 (define (digit-to-char d)
   (integer->char (+ (char->integer #\0) d)))
 
+; vérifie si le caractère est un nom de variable valide
+(define (is-var-name c)
+  (and (char-alphabetic? c) (char-lower-case? c)))
+
 ; convertit une liste de caractères en nombre
 (define (parse-num str)
   (define (loop str num)
@@ -176,9 +180,18 @@
     (loop (cdr n) '())))
 
 (define (parse-expr lst)
+  ; construit un noeud d'assignation
+  (define (assign tok tokens ast)
+    (if (equal? (length tok) 2)
+      (if (is-var-name (cadr tok))
+        (if (not (null? ast))
+          (dispatch (cdr tokens) (cons (node-new 'ass (cons (cadr tok) (car ast))) (cdr ast)))
+          'err-not-enough-op)
+        'err-invalid-varname)
+      'err-invalid-syntax))
   ; construit un noeud à partir d'opérandes
   ; '(tag (op1 . op2))
-  (define (parse-oper tag)
+  (define (oper tag)
     (lambda (tok tokens ast)
       (if (null? ast)
         'err-not-enough-op
@@ -188,35 +201,44 @@
             (op2 (cadr ast))
             (node (node-new tag (cons op2 op1))))
               (dispatch (cdr tokens) (cons node (cddr ast))))))))
-  ; '(num . val)
+  ; construit un noeud d'addition
+  (define add (oper 'add))
+  ; construit un noeud de soustraction
+  (define sub (oper 'sub))
+
+  ; construit un noeud de nombre
   (define (num tok tokens ast)
     (let ((r (parse-num tok)))
       (if (symbol? r)
         r
         (dispatch (cdr tokens) (cons (node-new 'num r) ast)))))
-  (define ftbl (list
-      (cons #\+ (parse-oper 'add))
-      (cons #\- (parse-oper 'sub))
-      (cons #\0 num)
-      (cons #\1 num)
-      (cons #\2 num)
-      (cons #\3 num)
-      (cons #\4 num)
-      (cons #\5 num)
-      (cons #\6 num)
-      (cons #\7 num)
-      (cons #\8 num)
-      (cons #\9 num)
-    ))
+
+  ; construit un noeud d'utilisation de variable
+  (define (use tok tokens ast)
+    (let ((node (node-new 'use (car tok))))
+      (dispatch (cdr tokens) (cons node ast))))
+
+  ; retourne la fonction d'analyse en fonction du caractère donné
+  (define (dispatch-fn c)
+    (cond
+      ((equal? c #\=) assign)
+      ((equal? c #\+) add)
+      ((equal? c #\-) sub)
+      ((char-numeric? c) num)
+      ((is-var-name c) use)
+      (else 'err-invalid-symbol)))
+
+  ; automate d'analyse d'expression, centre nerveux
   (define (dispatch tokens ast)
     (if (null? tokens)
       ast
-      (let* (
-        (tok (car tokens))
-        (kv (assoc (car tok) ftbl)))
-        (if kv
-          ((cdr kv) tok tokens ast)
-          'err-invalid-symbol))))
+      (let* ((tok (car tokens))
+        (f (dispatch-fn (car tok))))
+          (if (symbol? f)
+            f
+            (f tok tokens ast)))))
+
+  ; départ de l'analyse.
   (let ((r (dispatch (tokens lst) '())))
     (if (symbol? r)
       r
@@ -224,6 +246,7 @@
         'err-too-many-expr
         (car r)))))
 
+; évaluer une expression à partir de l'asa
 (define (eval node)
   (let ((tag (node-tag node))
     (args (node-args node)))
@@ -231,6 +254,7 @@
         ((equal? tag 'add) (add (eval (car args)) (eval (cdr args))))
         ((equal? tag 'sub) (sub (eval (car args)) (eval (cdr args)))))))
 
+; traiter l'expression reçue
 (define (traiter expr dict)
   (if (null? expr)
     (cons '(#\newline) dict)
@@ -282,14 +306,23 @@
   (assert-eq "format-num pos" (format-num '(pos 3 2 1)) '(#\1 #\2 #\3))
   (assert-eq "format-num neg" (format-num '(neg 3 2 1)) '(#\- #\1 #\2 #\3))
   ; parse-expr
-  (assert-eq "parse-expr invalid num" (parse-expr (string->list "4a33")) 'err-invalid-num)
+  (assert-eq "parse-expr ass" (parse-expr (string->list "4 =x")) '(ass . (#\x . (num . (pos 4)))))
+  (assert-eq "parse-expr num" (parse-expr (string->list "4")) '(num . (pos 4)))
+  (assert-eq "parse-expr add" (parse-expr (string->list "4 4 +")) '(add . ((num . (pos 4)) . (num . (pos 4)))))
+  (assert-eq "parse-expr sub" (parse-expr (string->list "4 4 -")) '(sub . ((num . (pos 4)) . (num . (pos 4)))))
+  (assert-eq "parse-expr use" (parse-expr (string->list "a")) '(use . #\a))
+  ; parse-expr (erreurs)
+  (assert-eq "parse-expr assign not enough op" (parse-expr (string->list "=x")) 'err-not-enough-op)
+  (assert-eq "parse-expr assign invalid syntax" (parse-expr (string->list "4 =abc")) 'err-invalid-syntax)
+  (assert-eq "parse-expr assign invalid varname" (parse-expr (string->list "4 =A")) 'err-invalid-varname)
+  (assert-eq "parse-expr num invalid" (parse-expr (string->list "4a33")) 'err-invalid-num)
   (assert-eq "parse-expr too many expr" (parse-expr (string->list "4 4 + 4")) 'err-too-many-expr)
   (assert-eq "parse-expr not enough op" (parse-expr (string->list "4 +")) 'err-not-enough-op)
-  (assert-eq "parse-expr invalid symbol" (parse-expr (string->list "a")) 'err-invalid-symbol)
+  (assert-eq "parse-expr invalid symbol" (parse-expr (string->list "!")) 'err-invalid-symbol)
   ; eval
-  (assert-eq "eval simple add" (eval '(add (num . (pos 4)) . (num . (pos 4)))) '(pos 8))
-  (assert-eq "eval simple sub" (eval '(sub (num . (pos 4)) . (num . (pos 4)))) '(pos 0))
-  (assert-eq "eval long" (eval '(add (add (num . (pos 4)) . (num . (pos 4))) . (num . (pos 4)))) '(pos 2 1))
+  (assert-eq "eval simple add" (eval '(add . ((num . (pos 4)) . (num . (pos 4))))) '(pos 8))
+  (assert-eq "eval simple sub" (eval '(sub . ((num . (pos 4)) . (num . (pos 4))))) '(pos 0))
+  (assert-eq "eval long" (eval '(add . ((add . ((num . (pos 4)) . (num . (pos 4)))) . (num . (pos 4))))) '(pos 2 1))
 
   (display "Tests terminés\n"))
 
