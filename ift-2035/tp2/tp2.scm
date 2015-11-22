@@ -37,6 +37,9 @@
 
 ; extrait un chiffre ou 0 des nombres et le reste des listes ou '()
 ; appelle f avec les données extraites
+(define (extract-n n f)
+  (f (car-or-0 n) (cdr-or-null n)))
+
 (define (extract a b f)
   (f (car-or-0 a) (cdr-or-null a) (car-or-0 b) (cdr-or-null b)))
 
@@ -118,6 +121,34 @@
           (cons 'neg (add-raw (cdr a) (cdr b)))))))
 
 ; sépare une liste de caratères en liste de mots (sépare sur les espaces)
+;effectue une multiplication d'un nombre par un chiffre et une puissance de 10
+(define (mul-factor-power n fact p)
+  (define (inc-power p)
+    (if (equal? p 0) '()
+      (cons 0 (inc-power (- p 1)))))
+  (define (loop r c fact n)
+    (if (null? n) 
+      (if (zero? c) r (append r (list c)))
+      (extract-n n (lambda(cn ln)
+        (let ((new-r (op-rem + c (* cn fact) 0)))
+          (loop (append r (list(car new-r))) (cdr new-r) fact ln))))))
+  (if (equal? fact 0) '(0)
+    (loop (inc-power p) 0 fact n)))
+  
+; effectue une multiplication sur n'importe quel nombre
+(define (mul a b)
+  (define (loop r p a b)
+    (if (null? a) r
+      (extract-n a (lambda (ca la)
+        (let ((part-r (mul-factor-power b ca p)))
+          (let ((new-r (add-raw r part-r)))
+            (loop new-r (+ p 1) la b)))))))
+  (let ((sa (car a))
+    (sb (car b)))
+      (if (equal? sa sb) 
+        (cons 'pos (loop '(0) 0 (cdr a) (cdr b)))
+        (cons 'neg (loop '(0) 0 (cdr a) (cdr b))))))		  
+		  
 ; supprime aussi les espaces superflues
 (define (tokens lst)
   (define (whitespace lst tokens)
@@ -206,6 +237,8 @@
   ; construit un noeud de soustraction
   (define sub (oper 'sub))
 
+  ;construit un noeud de multiplication
+  (define mul (oper 'mul))
   ; construit un noeud de nombre
   (define (num tok tokens ast)
     (let ((r (parse-num tok)))
@@ -252,6 +285,7 @@
     (args (node-args node)))
       (cond ((equal? tag 'num) args)
         ((equal? tag 'add) (add (eval (car args)) (eval (cdr args))))
+		((equal? tag 'mul) (mul (eval (car args)) (eval (cdr args))))
         ((equal? tag 'sub) (sub (eval (car args)) (eval (cdr args)))))))
 
 ; traiter l'expression reçue
@@ -291,6 +325,21 @@
   (assert-eq "-15 - 10" (sub '(neg 5 1) '(pos 0 1)) '(neg 5 2))
   (assert-eq "15 - -10" (sub '(pos 5 1) '(neg 0 1)) '(pos 5 2))
   (assert-eq "-15 - -10" (sub '(neg 5 1) '(neg 0 1)) '(neg 5))
+  ;multiplication
+  ;signe
+  (assert-eq "1 * 1" (mul '(pos 1) '(pos 1)) '(pos 1))
+  (assert-eq "-1 * 1" (mul '(neg 1) '(pos 1)) '(neg 1))
+  (assert-eq "1 * -1" (mul '(pos 1) '(neg 1)) '(neg 1))
+  (assert-eq "-1 * -1" (mul '(neg 1) '(neg 1)) '(pos 1))  
+  ;simple (sans retenue et nombre de puissance 0)
+  (assert-eq "1 * 2" (mul '(pos 1) '(pos 2)) '(pos 2))
+  (assert-eq "2 * 1" (mul '(pos 1) '(pos 2)) '(pos 2))
+  ;complexe (avec retenue et nombre puissance 1)
+  (assert-eq "1 * 2" (mul '(pos 5) '(pos 3)) '(pos 5 1))
+  (assert-eq "2 * 1" (mul '(pos 3) '(pos 5)) '(pos 5 1))
+  ;complexe (avec retenue et nombre puissance 2+)
+  (assert-eq "1 * 2" (mul '(pos 1 2 3 4 5 6 7 8 0 9) '(pos 0 9 8 7 6 5 4 3 2 1)) '(pos 0 9 6 2 5 3 6 2 1 0 2 2 6 2 3 9 1 2 1 1))
+  (assert-eq "1 * 2" (mul '(pos 0 9 8 7 6 5 4 3 2 1) '(pos 1 2 3 4 5 6 7 8 0 9)) '(pos 0 9 6 2 5 3 6 2 1 0 2 2 6 2 3 9 1 2 1 1))
   ; tokens
   (assert-eq "tokens simple" (tokens (string->list "4 4 +")) '((#\4) (#\4) (#\+)))
   (assert-eq "tokens espaces superflues" (tokens (string->list "  4  4  +  ")) '((#\4) (#\4) (#\+)))
