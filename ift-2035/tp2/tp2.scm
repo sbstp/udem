@@ -257,6 +257,7 @@
       ((equal? c #\=) assign)
       ((equal? c #\+) add)
       ((equal? c #\-) sub)
+	  ((equal? c #\*) mul)
       ((char-numeric? c) num)
       ((is-var-name c) use)
       (else 'err-invalid-symbol)))
