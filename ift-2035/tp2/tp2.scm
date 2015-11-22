@@ -120,21 +120,20 @@
           (cons 'pos (add-raw (cdr a) (cdr b)))
           (cons 'neg (add-raw (cdr a) (cdr b)))))))
 
-; sépare une liste de caratères en liste de mots (sépare sur les espaces)
 ;effectue une multiplication d'un nombre par un chiffre et une puissance de 10
 (define (mul-factor-power n fact p)
   (define (inc-power p)
     (if (equal? p 0) '()
       (cons 0 (inc-power (- p 1)))))
   (define (loop r c fact n)
-    (if (null? n) 
+    (if (null? n)
       (if (zero? c) r (append r (list c)))
       (extract-n n (lambda(cn ln)
         (let ((new-r (op-rem + c (* cn fact) 0)))
           (loop (append r (list(car new-r))) (cdr new-r) fact ln))))))
   (if (equal? fact 0) '(0)
     (loop (inc-power p) 0 fact n)))
-  
+
 ; effectue une multiplication sur n'importe quel nombre
 (define (mul a b)
   (define (loop r p a b)
@@ -145,10 +144,11 @@
             (loop new-r (+ p 1) la b)))))))
   (let ((sa (car a))
     (sb (car b)))
-      (if (equal? sa sb) 
+      (if (equal? sa sb)
         (cons 'pos (loop '(0) 0 (cdr a) (cdr b)))
-        (cons 'neg (loop '(0) 0 (cdr a) (cdr b))))))		  
-		  
+        (cons 'neg (loop '(0) 0 (cdr a) (cdr b))))))
+
+; sépare une liste de caratères en liste de mots (sépare sur les espaces)
 ; supprime aussi les espaces superflues
 (define (tokens lst)
   (define (whitespace lst tokens)
@@ -206,9 +206,10 @@
     (if (null? n)
       lst
       (loop (cdr n) (cons (digit-to-char (car n)) lst))))
-  (if (eq? (car n) 'neg)
-    (cons #\- (loop (cdr n) '()))
-    (loop (cdr n) '())))
+  (cond
+    ((or (equal? n '(neg 0)) (equal? n '(pos 0))) '(#\0))
+    ((equal? (car n) 'neg) (cons #\- (loop (cdr n) '())))
+    (else (loop (cdr n) '()))))
 
 (define (parse-expr lst)
   ; construit un noeud d'assignation
@@ -236,7 +237,6 @@
   (define add (oper 'add))
   ; construit un noeud de soustraction
   (define sub (oper 'sub))
-
   ;construit un noeud de multiplication
   (define mul (oper 'mul))
   ; construit un noeud de nombre
@@ -257,7 +257,7 @@
       ((equal? c #\=) assign)
       ((equal? c #\+) add)
       ((equal? c #\-) sub)
-	  ((equal? c #\*) mul)
+      ((equal? c #\*) mul)
       ((char-numeric? c) num)
       ((is-var-name c) use)
       (else 'err-invalid-symbol)))
@@ -286,7 +286,7 @@
     (args (node-args node)))
       (cond ((equal? tag 'num) args)
         ((equal? tag 'add) (add (eval (car args)) (eval (cdr args))))
-		((equal? tag 'mul) (mul (eval (car args)) (eval (cdr args))))
+        ((equal? tag 'mul) (mul (eval (car args)) (eval (cdr args))))
         ((equal? tag 'sub) (sub (eval (car args)) (eval (cdr args)))))))
 
 ; traiter l'expression reçue
@@ -297,7 +297,6 @@
             (format-num (eval (parse-expr expr)))
             '(#\newline))
           dict)))
-
 
 ;;;----------------------------------------------------------------------------
 ;;; Tests unitaires
@@ -331,7 +330,7 @@
   (assert-eq "1 * 1" (mul '(pos 1) '(pos 1)) '(pos 1))
   (assert-eq "-1 * 1" (mul '(neg 1) '(pos 1)) '(neg 1))
   (assert-eq "1 * -1" (mul '(pos 1) '(neg 1)) '(neg 1))
-  (assert-eq "-1 * -1" (mul '(neg 1) '(neg 1)) '(pos 1))  
+  (assert-eq "-1 * -1" (mul '(neg 1) '(neg 1)) '(pos 1))
   ;simple (sans retenue et nombre de puissance 0)
   (assert-eq "1 * 2" (mul '(pos 1) '(pos 2)) '(pos 2))
   (assert-eq "2 * 1" (mul '(pos 1) '(pos 2)) '(pos 2))
@@ -355,11 +354,14 @@
   ; format-num
   (assert-eq "format-num pos" (format-num '(pos 3 2 1)) '(#\1 #\2 #\3))
   (assert-eq "format-num neg" (format-num '(neg 3 2 1)) '(#\- #\1 #\2 #\3))
+  (assert-eq "format-num pos 0" (format-num '(pos 0)) '(#\0))
+  (assert-eq "format-num neg 0" (format-num '(neg 0)) '(#\0))
   ; parse-expr
   (assert-eq "parse-expr ass" (parse-expr (string->list "4 =x")) '(ass . (#\x . (num . (pos 4)))))
   (assert-eq "parse-expr num" (parse-expr (string->list "4")) '(num . (pos 4)))
   (assert-eq "parse-expr add" (parse-expr (string->list "4 4 +")) '(add . ((num . (pos 4)) . (num . (pos 4)))))
   (assert-eq "parse-expr sub" (parse-expr (string->list "4 4 -")) '(sub . ((num . (pos 4)) . (num . (pos 4)))))
+  (assert-eq "parse-expr mul" (parse-expr (string->list "4 4 *")) '(mul . ((num . (pos 4)) . (num . (pos 4)))))
   (assert-eq "parse-expr use" (parse-expr (string->list "a")) '(use . #\a))
   ; parse-expr (erreurs)
   (assert-eq "parse-expr assign not enough op" (parse-expr (string->list "=x")) 'err-not-enough-op)
