@@ -206,10 +206,10 @@
     (if (null? n)
       lst
       (loop (cdr n) (cons (digit-to-char (car n)) lst))))
-  (cond
+  (append (cond
     ((or (equal? n '(neg 0)) (equal? n '(pos 0))) '(#\0))
     ((equal? (car n) 'neg) (cons #\- (loop (cdr n) '())))
-    (else (loop (cdr n) '()))))
+    (else (loop (cdr n) '()))) '(#\newline))  )
 
 (define (parse-expr lst)
   ; construit un noeud d'assignation
@@ -280,35 +280,101 @@
         'err-too-many-expr
         (car r)))))
 
+; remplace une clef si elle existe, sinon elle est ajouté
+(define (insert-or-replace dict k v)
+  (if (null? dict)
+    (cons (cons k v) '())
+    (if (equal? (caar dict) k)
+      (cons (cons k v) (cdr dict))
+      (cons (car dict) (insert-or-replace (cdr dict) k v)))))
+
 ; évaluer une expression à partir de l'asa
-(define (eval node)
-  (let ((tag (node-tag node))
-    (args (node-args node)))
-      (cond ((equal? tag 'num) args)
-        ((equal? tag 'add) (add (eval (car args)) (eval (cdr args))))
-        ((equal? tag 'mul) (mul (eval (car args)) (eval (cdr args))))
-        ((equal? tag 'sub) (sub (eval (car args)) (eval (cdr args)))))))
+; retourne une pair avec la valeur à gauche et les variables à droite
+(define (eval node vars)
+  ; évaluer une assignation
+  (define (eval-ass args vars)
+    (let ((v (eval (cdr args) vars)))
+      (if (symbol? v)
+        v
+        (cons (car v) (insert-or-replace (cdr v) (car args) (car v))))))
+  ; évaluer un opérateur d'arité 2
+  (define (eval-op op)
+    (lambda (args vars)
+      (let ((v1 (eval (car args) vars)))
+        ; erreur?
+        (if (symbol? v1)
+          v1
+          (let ((v2 (eval (cdr args) (cdr v1))))
+            ; erreur?
+            (if (symbol? v2)
+              v2
+              (cons (op (car v1) (car v2)) (cdr v2))))))))
+  ; évaluer un nombre
+  (define (eval-num args vars)
+    (cons args vars))
+  ; évaluer une expression d'utilisation de variable
+  (define (eval-use args vars)
+    (let ((r (assoc args vars)))
+      (if r
+        (cons (cdr r) vars)
+        'err-undefined-var)))
+  ; dispatch table
+  (define table
+    (list
+      (cons 'ass eval-ass)
+      (cons 'add (eval-op add))
+      (cons 'sub (eval-op sub))
+      (cons 'mul (eval-op mul))
+      (cons 'num eval-num)
+      (cons 'use eval-use)))
+  (let ((r (assoc (node-tag node) table)))
+    (if r
+      ((cdr r) (node-args node) vars)
+      'err-invalid-ast-tag)))
+
+(define (format-parser-error err)
+  (define table (list
+    (cons 'err-not-enough-op "Nombre d'opérandes insuffisant.")
+    (cons 'err-invalid-syntax "Syntaxe invalide.")
+    (cons 'err-invalid-varname "Nom de variable invalide.")
+    (cons 'err-invalid-num' "Nombre invalide.")
+    (cons 'err-too-many-expr "La ligne contient plus qu'une expression.")
+    (cons 'err-invalid-symbol "Symbole invalide.")))
+
+  (let ((r (assoc err table)))
+    (if r
+      (append (string->list (cdr r)) '(#\newline))
+      (error err))))
+
+(define (format-eval-error err)
+  (if (equal? err 'err-undefined-var)
+    (string->list "Variable inconnue utilisée\n")
+    (error err)))
 
 ; traiter l'expression reçue
 (define (traiter expr dict)
   (if (null? expr)
     (cons '(#\newline) dict)
-    (cons (append
-            (format-num (eval (parse-expr expr)))
-            '(#\newline))
-          dict)))
+    (let ((ast (parse-expr expr)))
+      (if (symbol? ast)
+        (cons (format-parser-error ast) dict)
+        (let ((r (eval ast dict)))
+          (if (symbol? r)
+            (cons (format-eval-error r) dict)
+            (cons (format-num (car r)) (cdr r))))))))
 
 ;;;----------------------------------------------------------------------------
 ;;; Tests unitaires
 (define (assert-eq d a b)
   (define (error)
+    (display "----\n")
     (display "Erreur dans '")
     (display d)
-    (display "' : ")
-    (display a)
-    (display " != ")
-    (display b)
-    (newline))
+    (display ":\n")
+    (display "Actuel:    ")
+    (pp a)
+    (display "Attendu:   ")
+    (pp b))
   (if (equal? a b)
     (void)
     (error)))
@@ -352,10 +418,10 @@
   (assert-eq "parse-num" (parse-num (string->list "123")) '(pos 3 2 1))
   (assert-eq "parse-num invalid data" (parse-num (string->list "1a23")) 'err-invalid-num)
   ; format-num
-  (assert-eq "format-num pos" (format-num '(pos 3 2 1)) '(#\1 #\2 #\3))
-  (assert-eq "format-num neg" (format-num '(neg 3 2 1)) '(#\- #\1 #\2 #\3))
-  (assert-eq "format-num pos 0" (format-num '(pos 0)) '(#\0))
-  (assert-eq "format-num neg 0" (format-num '(neg 0)) '(#\0))
+  (assert-eq "format-num pos" (format-num '(pos 3 2 1)) '(#\1 #\2 #\3 #\newline))
+  (assert-eq "format-num neg" (format-num '(neg 3 2 1)) '(#\- #\1 #\2 #\3 #\newline))
+  (assert-eq "format-num pos 0" (format-num '(pos 0)) '(#\0 #\newline))
+  (assert-eq "format-num neg 0" (format-num '(neg 0)) '(#\0 #\newline))
   ; parse-expr
   (assert-eq "parse-expr ass" (parse-expr (string->list "4 =x")) '(ass . (#\x . (num . (pos 4)))))
   (assert-eq "parse-expr num" (parse-expr (string->list "4")) '(num . (pos 4)))
@@ -371,11 +437,25 @@
   (assert-eq "parse-expr too many expr" (parse-expr (string->list "4 4 + 4")) 'err-too-many-expr)
   (assert-eq "parse-expr not enough op" (parse-expr (string->list "4 +")) 'err-not-enough-op)
   (assert-eq "parse-expr invalid symbol" (parse-expr (string->list "!")) 'err-invalid-symbol)
+  ; insert-or-replace
+  (assert-eq "insert-or-replace existe" (insert-or-replace '((b . 4) (a . 2)) 'a 3) '((b . 4) (a . 3)))
+  (assert-eq "insert-or-replace existe pas" (insert-or-replace '() 'a 3) '((a . 3)))
   ; eval
-  (assert-eq "eval simple add" (eval '(add . ((num . (pos 4)) . (num . (pos 4))))) '(pos 8))
-  (assert-eq "eval simple sub" (eval '(sub . ((num . (pos 4)) . (num . (pos 4))))) '(pos 0))
-  (assert-eq "eval long" (eval '(add . ((add . ((num . (pos 4)) . (num . (pos 4)))) . (num . (pos 4))))) '(pos 2 1))
+  (assert-eq "eval simple add" (eval '(add . ((num . (pos 4)) . (num . (pos 4)))) '()) '((pos 8)))
+  (assert-eq "eval simple sub" (eval '(sub . ((num . (pos 4)) . (num . (pos 4)))) '()) '((pos 0)))
+  (assert-eq "eval long" (eval '(add . ((add . ((num . (pos 4)) . (num . (pos 4)))) . (num . (pos 4)))) '()) '((pos 2 1)))
+  (assert-eq "eval assign" (eval '(ass . (#\a . (num . (pos 4)))) '()) '((pos 4) . ((#\a . (pos 4)))))
+  (assert-eq "eval use" (eval '(use . #\a) '((#\a . (pos 4)))) '((pos 4) . ((#\a . (pos 4)))))
+  (assert-eq "eval undef var" (eval '(use . #\a) '()) 'err-undefined-var)
+  (assert-eq "eval undef var ass" (eval '(ass . (#\a . (use #\b))) '()) 'err-undefined-var)
+  (assert-eq "eval undef var op" (eval '(ass . (#\a . (add . ((num . (pos 4)) . (use #\b))))) '()) 'err-undefined-var)
 
+  ; tests d'intégration
+  (assert-eq "intégration changement valeur" (eval (parse-expr (string->list "4 =x")) '((#\x . (pos 2)))) '((pos 4) . ((#\x . (pos 4)))))
+  (assert-eq "intégration double assignation" (eval (parse-expr (string->list "2 =x 4 =x *")) '()) '((pos 8) . ((#\x . (pos 4)))))
+
+
+  (display "----\n")
   (display "Tests terminés\n"))
 
 ;;;----------------------------------------------------------------------------
