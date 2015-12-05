@@ -57,7 +57,6 @@
         (cond ((< va vb) 'lt)
           ((> va vb) 'gt)
           (else (impl (cdr na) (cdr nb)))))))
-
   (let ((lna (length na)) (lnb (length nb)))
     (cond ((< lna lnb) 'lt)
       ((> lna lnb) 'gt)
@@ -65,13 +64,13 @@
 
 ; effectue une addition sur deux nombres positifs
 (define (add-raw a b)
-  (define (loop c a b)
+  (define (loop c a b n)
     (if (and (null? a) (null? b))
-      (if (zero? c) '() (cons c '()))
+      (if (zero? c) n (append-element n c))
       (extract a b (lambda (ca la cb lb)
         (op-rem + c ca cb (lambda (res rem)
-          (cons res (loop rem la lb))))))))
-  (loop 0 a b))
+          (loop rem la lb (append-element n res))))))))
+  (loop 0 a b '()))
 
 ; effectue une addition sur n'importe quel nombre
 (define (add a b)
@@ -94,14 +93,14 @@
       (if (zero? (car l))
         (trim (cdr l))
         l)))
-  (define (loop c a b)
-    (if (and (null? a) (null? b)) '()
+  (define (loop c a b n)
+    (if (and (null? a) (null? b)) n
       (extract a b (lambda (ca la cb lb)
         (let ((r (- ca c)))
           (if (< r cb)
-            (cons (- (+ r 10) cb) (loop 1 la lb))
-            (cons (- r cb) (loop 0 la lb))))))))
-  (reverse (trim (reverse (loop 0 a b)))))
+            (loop 1 la lb (append-element n (- (+ r 10) cb)))
+            (loop 0 la lb (append-element n (- r cb)))))))))
+  (reverse (trim (reverse (loop 0 a b '())))))
 
 ; effectue une soustraction sur n'importe quel nombre
 (define (sub a b)
