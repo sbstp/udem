@@ -43,6 +43,10 @@
 (define (extract a b f)
   (f (car-or-0 a) (cdr-or-null a) (car-or-0 b) (cdr-or-null b)))
 
+; ajoute un élément à une liste
+(define (append-element l e)
+  (append l (cons e '())))
+
 ; compare deux nombres positifs
 ; retourne 'eq si a = b, 'lt si a < b et 'gt si a > b
 (define (cmp-raw na nb)
@@ -127,10 +131,10 @@
       (cons 0 (inc-power (- p 1)))))
   (define (loop r c fact n)
     (if (null? n)
-      (if (zero? c) r (append r (list c)))
+      (if (zero? c) r (append-element r c))
       (extract-n n (lambda(cn ln)
         (op-rem + c (* cn fact) 0 (lambda (res rem)
-          (loop (append r (list res)) rem fact ln)))))))
+          (loop (append-element r res) rem fact ln)))))))
   (if (equal? fact 0) '(0)
     (loop (inc-power p) 0 fact n)))
 
@@ -159,9 +163,9 @@
         (token lst '() tokens))))
   (define (token lst tok tokens)
     (if (null? lst)
-      (append tokens (list tok))
+      (append-element tokens tok)
       (if (equal? (car lst) #\space)
-        (whitespace lst (append tokens (list tok)))
+        (whitespace lst (append-element tokens tok))
         (token (cdr lst) (append tok (list (car lst))) tokens))))
   (whitespace lst '()))
 
@@ -209,7 +213,7 @@
   (append (cond
     ((or (equal? n '(neg 0)) (equal? n '(pos 0))) '(#\0))
     ((equal? (car n) 'neg) (cons #\- (loop (cdr n) '())))
-    (else (loop (cdr n) '()))) '(#\newline))  )
+    (else (loop (cdr n) '()))) '(#\newline)))
 
 (define (parse-expr lst)
   ; construit un noeud d'assignation
@@ -337,7 +341,7 @@
     (cons 'err-not-enough-op "Nombre d'opérandes insuffisant.")
     (cons 'err-invalid-syntax "Syntaxe invalide.")
     (cons 'err-invalid-varname "Nom de variable invalide.")
-    (cons 'err-invalid-num' "Nombre invalide.")
+    (cons 'err-invalid-num "Nombre invalide.")
     (cons 'err-too-many-expr "La ligne contient plus qu'une expression.")
     (cons 'err-invalid-symbol "Symbole invalide.")))
 
