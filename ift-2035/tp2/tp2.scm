@@ -23,9 +23,9 @@
 ;;; "repl" qui se charge de cela.
 
 ; effectue une opération avec reste en utilisant le modulo et le quotient.
-(define (op-rem op c c1 c2)
+(define (op-rem op c c1 c2 f)
   (let ((r (op c c1 c2)))
-    (cons (modulo r 10) (quotient r 10))))
+    (f (modulo r 10) (quotient r 10))))
 
 ; si x est null, retourne 0, sinon (car x)
 (define (car-or-0 x)
@@ -65,8 +65,8 @@
     (if (and (null? a) (null? b))
       (if (zero? c) '() (cons c '()))
       (extract a b (lambda (ca la cb lb)
-        (let ((r (op-rem + c ca cb)))
-          (cons (car r) (loop (cdr r) la lb)))))))
+        (op-rem + c ca cb (lambda (res rem)
+          (cons res (loop rem la lb))))))))
   (loop 0 a b))
 
 ; effectue une addition sur n'importe quel nombre
@@ -120,7 +120,7 @@
           (cons 'pos (add-raw (cdr a) (cdr b)))
           (cons 'neg (add-raw (cdr a) (cdr b)))))))
 
-;effectue une multiplication d'un nombre par un chiffre et une puissance de 10
+; effectue une multiplication d'un nombre par un chiffre et une puissance de 10
 (define (mul-factor-power n fact p)
   (define (inc-power p)
     (if (equal? p 0) '()
@@ -129,8 +129,8 @@
     (if (null? n)
       (if (zero? c) r (append r (list c)))
       (extract-n n (lambda(cn ln)
-        (let ((new-r (op-rem + c (* cn fact) 0)))
-          (loop (append r (list(car new-r))) (cdr new-r) fact ln))))))
+        (op-rem + c (* cn fact) 0 (lambda (res rem)
+          (loop (append r (list res)) rem fact ln)))))))
   (if (equal? fact 0) '(0)
     (loop (inc-power p) 0 fact n)))
 
