@@ -1,0 +1,74 @@
+\documentclass[a4paper,12pt,french]{article}
+\RequirePackage[l2tabu, orthodox]{nag}
+\usepackage{setspace}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+%Enable fr support
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern} % load a font with all the characters
+\usepackage{babel}
+\usepackage{courier}
+\usepackage{listings}
+
+%Assign document variables
+\date{\today}
+\author{Kevin Belisle \& Simon Bernier St-Pierre}
+\title{TP2}
+\newcommand{\Teacher}{Marc Feeley}
+\newcommand{\ClassNum}{IFT-2035}
+\newcommand{\ClassName}{Concepts des langages de programmation}
+\newcommand{\DateMMMMYYYY}{Décembre 2015}
+\newcommand{\Author}{Kevin Belisle}
+\newcommand{\Authorr}{Simon Bernier St-Pierre}
+\makeatletter
+
+%Custom Header & Footer
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\@title}
+\fancyhead[R]{\thepage}
+\fancyfoot[L]{Kevin Belisle \& Simon Bernier St-Pierre}
+\fancyfoot[R]{\DateMMMMYYYY}
+\renewcommand{\footrulewidth}{0.4pt}% default is 0pt
+
+% code listings
+\lstset{language=C}
+\lstset{basicstyle=\footnotesize\ttfamily}
+
+\begin{document}
+\begin{titlepage}
+	\begin{center}
+		\textsc{\normalsize Université de Montréal}\\[2.5cm]
+
+		\textsc{\LARGE \@title}\\[2.5cm]
+
+		\textsc{\small Par}\\[0.25cm]
+		\textsc{\LARGE \Author}\\[0.25cm]
+		\textsc{\normalsize (20018469)}\\[0.25cm]
+		\textsc{\LARGE \Authorr}\\[0.25cm]
+		\textsc{\normalsize (20031840)}\\[2.5cm]
+
+		\textsc{\normalsize Baccalauréat en informatique}\\
+		\textsc{\normalsize Faculté des arts et des sciences}\\[2.5cm]
+
+		\textsc{\small Travail présenté à \Teacher}\\
+		\textsc{\small Dans le cadre du cours \ClassNum}\\
+		\textsc{\small \ClassName}\\[2.5cm]
+
+		\textsc{\normalsize \DateMMMMYYYY}\\[1.5cm]
+	\end{center}
+\end{titlepage}
+\section{Fonctionnement général du programme}
+\section{Résolution des problèmes}
+	\renewcommand{\thesubsection}{(\alph{subsection})}
+	\subsection{Comment se fait l'analyse syntaxique d'une expression et comment est réalisé le traitement d'une expression de longueur quelconque}
+	\subsection{Comment se fait le calcul de l'expression}
+	\subsection{Comment se fait l'affectation aux variables}
+	\subsection{Comment se fait l'affichage des résultats et erreurs}
+	\subsection{Comment se fait le traitement des erreurs}
+\section{Expérience de développement C vs Scheme}
+\end{document}
