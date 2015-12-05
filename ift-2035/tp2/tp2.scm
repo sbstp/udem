@@ -251,8 +251,10 @@
 
   ; construit un noeud d'utilisation de variable
   (define (use tok tokens ast)
-    (let ((node (node-new 'use (car tok))))
-      (dispatch (cdr tokens) (cons node ast))))
+    (if (equal? (length tok) 1)
+      (let ((node (node-new 'use (car tok))))
+        (dispatch (cdr tokens) (cons node ast)))
+      'err-invalid-varname))
 
   ; retourne la fonction d'analyse en fonction du caractère donné
   (define (dispatch-fn c)
@@ -357,7 +359,7 @@
 ; traiter l'expression reçue
 (define (traiter expr dict)
   (if (null? expr)
-    (cons '(#\newline) dict)
+    (cons '() dict)
     (let ((ast (parse-expr expr)))
       (if (symbol? ast)
         (cons (format-parser-error ast) dict)
