@@ -296,46 +296,41 @@
 ; évaluer une expression à partir de l'asa
 ; retourne une pair avec la valeur à gauche et les variables à droite
 (define (eval node vars)
-  ; évaluer une assignation
-  (define (eval-ass args vars)
-    (let ((v (eval (cdr args) vars)))
-      (if (symbol? v)
-        v
-        (cons (car v) (insert-or-replace (cdr v) (car args) (car v))))))
-  ; évaluer un opérateur d'arité 2
-  (define (eval-op op)
-    (lambda (args vars)
-      (let ((v1 (eval (car args) vars)))
-        ; erreur?
-        (if (symbol? v1)
-          v1
-          (let ((v2 (eval (cdr args) (cdr v1))))
-            ; erreur?
-            (if (symbol? v2)
-              v2
-              (cons (op (car v1) (car v2)) (cdr v2))))))))
-  ; évaluer un nombre
-  (define (eval-num args vars)
-    (cons args vars))
-  ; évaluer une expression d'utilisation de variable
-  (define (eval-use args vars)
-    (let ((r (assoc args vars)))
+  (define (impl node vars f)
+    ; évaluer une assignation
+    (define (eval-ass args vars f)
+      (impl (cdr args) vars (lambda (val vars)
+        (f val (insert-or-replace vars (car args) val)))))
+    ; évaluer un opérateur d'arité 2
+    (define (eval-op op)
+      (lambda (args vars f)
+        (impl (car args) vars (lambda (v1 vars)
+          (impl (cdr args) vars (lambda (v2 vars)
+            (f (op v1 v2) vars)))))))
+    ; évaluer un nombre
+    (define (eval-num args vars f)
+      (f args vars))
+    ; évaluer une expression d'utilisation de variable
+    (define (eval-use args vars f)
+      (let ((r (assoc args vars)))
+        (if r
+          (f (cdr r) vars)
+          'err-undefined-var)))
+    ; dispatch table
+    (define table
+      (list
+        (cons 'ass eval-ass)
+        (cons 'add (eval-op add))
+        (cons 'sub (eval-op sub))
+        (cons 'mul (eval-op mul))
+        (cons 'num eval-num)
+        (cons 'use eval-use)))
+    (let ((r (assoc (node-tag node) table)))
       (if r
-        (cons (cdr r) vars)
-        'err-undefined-var)))
-  ; dispatch table
-  (define table
-    (list
-      (cons 'ass eval-ass)
-      (cons 'add (eval-op add))
-      (cons 'sub (eval-op sub))
-      (cons 'mul (eval-op mul))
-      (cons 'num eval-num)
-      (cons 'use eval-use)))
-  (let ((r (assoc (node-tag node) table)))
-    (if r
-      ((cdr r) (node-args node) vars)
-      'err-invalid-ast-tag)))
+        ((cdr r) (node-args node) vars f)
+        'err-invalid-ast-tag)))
+  (impl node vars (lambda (val vars)
+    (cons val vars))))
 
 (define (format-parser-error err)
   (define table (list
