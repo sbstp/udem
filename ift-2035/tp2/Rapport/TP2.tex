@@ -66,7 +66,10 @@
 \section{Résolution des problèmes}
 	\renewcommand{\thesubsection}{(\alph{subsection})}
 	\subsection{Comment se fait l'analyse syntaxique d'une expression et comment est réalisé le traitement d'une expression de longueur quelconque}
-	\subsection{Comment se fait le calcul de l'expression}
+        La liste de caractères est séparée en liste de mots à l'aide de la fonction \lstinline$tokens$. Cette fonction sépare une liste de caractères sur les espaces. L'analyseur d'expressions est séparé en plusieurs petites fonctions répondant à une interface identique. Les fonctions prennent en paramètre le mot courant, le reste de la liste de mots et une pile contenant les sous-expressions. La fonction \lstinline$dispatch$ choisit, à partir du premier élément de la liste de mots, quelle fonction d'analyse appeler. Le résultat est un arbre de noeuds représentant l'expression donnée. Les noeuds sont représentés par une paire. Le \lstinline$car$ est un symbole représentant le type du noeud, et le \lstinline$cdr$ représente les arguments (données additionelles).\\
+
+        L'évaluation d'expressions se fait à l'aide de plusieurs petites fonctions en forme itérative ainsi que de continuations. Les fonctions d'évaluation répondent aussi à une interface commune, elle prennent les arguments d'un noeud, la liste des variables, et une continuation qui doit être appelée avec les données produites, soit un nombre et une liste de variables. L'évalutation débute par le noeud \og racine \fg{}. Ses sous noeuds sont évalués en envoyant des continuations qui modifieront le résultat des sous expressions et appèleront la continuation du noeud parent. Lorsque qu'on atteint les feuilles de l'arbre, on a terminé de parcourir l'arbre. Les feuilles appèlent la continuation qui leur a été donnée, et on remonte donc dans l'arbre à l'envers, chaque continuation modifiant le réultat et la liste des variables au besoin.
+        \subsection{Comment se fait le calcul de l'expression}
 	\subsection{Comment se fait l'affectation aux variables}
 	\subsection{Comment se fait l'affichage des résultats et erreurs}
 	\subsection{Comment se fait le traitement des erreurs}
