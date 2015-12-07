@@ -125,9 +125,9 @@
 
 ; effectue une multiplication d'un nombre par un chiffre et une puissance de 10
 (define (mul-factor-power n fact p)
-  (define (inc-power p)
-    (if (equal? p 0) '()
-      (cons 0 (inc-power (- p 1)))))
+  (define (inc-power p l)
+    (if (equal? p 0) l
+      (inc-power (- p 1) (append-element l 0))))
   (define (loop r c fact n)
     (if (null? n)
       (if (zero? c) r (append-element r c))
@@ -135,7 +135,7 @@
         (op-rem + c (* cn fact) 0 (lambda (res rem)
           (loop (append-element r res) rem fact ln)))))))
   (if (equal? fact 0) '(0)
-    (loop (inc-power p) 0 fact n)))
+    (loop (inc-power p '()) 0 fact n)))
 
 ; effectue une multiplication sur n'importe quel nombre
 (define (mul a b)
