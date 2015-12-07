@@ -23,9 +23,9 @@
 ;;; "repl" qui se charge de cela.
 
 ; effectue une opération avec reste en utilisant le modulo et le quotient.
-(define (op-rem op c c1 c2)
+(define (op-rem op c c1 c2 f)
   (let ((r (op c c1 c2)))
-    (cons (modulo r 10) (quotient r 10))))
+    (f (modulo r 10) (quotient r 10))))
 
 ; si x est null, retourne 0, sinon (car x)
 (define (car-or-0 x)
@@ -43,6 +43,10 @@
 (define (extract a b f)
   (f (car-or-0 a) (cdr-or-null a) (car-or-0 b) (cdr-or-null b)))
 
+; ajoute un élément à une liste
+(define (append-element l e)
+  (append l (cons e '())))
+
 ; compare deux nombres positifs
 ; retourne 'eq si a = b, 'lt si a < b et 'gt si a > b
 (define (cmp-raw na nb)
@@ -53,7 +57,6 @@
         (cond ((< va vb) 'lt)
           ((> va vb) 'gt)
           (else (impl (cdr na) (cdr nb)))))))
-
   (let ((lna (length na)) (lnb (length nb)))
     (cond ((< lna lnb) 'lt)
       ((> lna lnb) 'gt)
@@ -61,13 +64,13 @@
 
 ; effectue une addition sur deux nombres positifs
 (define (add-raw a b)
-  (define (loop c a b)
+  (define (loop c a b n)
     (if (and (null? a) (null? b))
-      (if (zero? c) '() (cons c '()))
+      (if (zero? c) n (append-element n c))
       (extract a b (lambda (ca la cb lb)
-        (let ((r (op-rem + c ca cb)))
-          (cons (car r) (loop (cdr r) la lb)))))))
-  (loop 0 a b))
+        (op-rem + c ca cb (lambda (res rem)
+          (loop rem la lb (append-element n res))))))))
+  (loop 0 a b '()))
 
 ; effectue une addition sur n'importe quel nombre
 (define (add a b)
@@ -90,14 +93,14 @@
       (if (zero? (car l))
         (trim (cdr l))
         l)))
-  (define (loop c a b)
-    (if (and (null? a) (null? b)) '()
+  (define (loop c a b n)
+    (if (and (null? a) (null? b)) n
       (extract a b (lambda (ca la cb lb)
         (let ((r (- ca c)))
           (if (< r cb)
-            (cons (- (+ r 10) cb) (loop 1 la lb))
-            (cons (- r cb) (loop 0 la lb))))))))
-  (reverse (trim (reverse (loop 0 a b)))))
+            (loop 1 la lb (append-element n (- (+ r 10) cb)))
+            (loop 0 la lb (append-element n (- r cb)))))))))
+  (reverse (trim (reverse (loop 0 a b '())))))
 
 ; effectue une soustraction sur n'importe quel nombre
 (define (sub a b)
@@ -120,17 +123,17 @@
           (cons 'pos (add-raw (cdr a) (cdr b)))
           (cons 'neg (add-raw (cdr a) (cdr b)))))))
 
-;effectue une multiplication d'un nombre par un chiffre et une puissance de 10
+; effectue une multiplication d'un nombre par un chiffre et une puissance de 10
 (define (mul-factor-power n fact p)
   (define (inc-power p)
     (if (equal? p 0) '()
       (cons 0 (inc-power (- p 1)))))
   (define (loop r c fact n)
     (if (null? n)
-      (if (zero? c) r (append r (list c)))
+      (if (zero? c) r (append-element r c))
       (extract-n n (lambda(cn ln)
-        (let ((new-r (op-rem + c (* cn fact) 0)))
-          (loop (append r (list(car new-r))) (cdr new-r) fact ln))))))
+        (op-rem + c (* cn fact) 0 (lambda (res rem)
+          (loop (append-element r res) rem fact ln)))))))
   (if (equal? fact 0) '(0)
     (loop (inc-power p) 0 fact n)))
 
@@ -159,9 +162,9 @@
         (token lst '() tokens))))
   (define (token lst tok tokens)
     (if (null? lst)
-      (append tokens (list tok))
+      (append-element tokens tok)
       (if (equal? (car lst) #\space)
-        (whitespace lst (append tokens (list tok)))
+        (whitespace lst (append-element tokens tok))
         (token (cdr lst) (append tok (list (car lst))) tokens))))
   (whitespace lst '()))
 
@@ -209,7 +212,7 @@
   (append (cond
     ((or (equal? n '(neg 0)) (equal? n '(pos 0))) '(#\0))
     ((equal? (car n) 'neg) (cons #\- (loop (cdr n) '())))
-    (else (loop (cdr n) '()))) '(#\newline))  )
+    (else (loop (cdr n) '()))) '(#\newline)))
 
 (define (parse-expr lst)
   ; construit un noeud d'assignation
@@ -248,8 +251,10 @@
 
   ; construit un noeud d'utilisation de variable
   (define (use tok tokens ast)
-    (let ((node (node-new 'use (car tok))))
-      (dispatch (cdr tokens) (cons node ast))))
+    (if (equal? (length tok) 1)
+      (let ((node (node-new 'use (car tok))))
+        (dispatch (cdr tokens) (cons node ast)))
+      'err-invalid-varname))
 
   ; retourne la fonction d'analyse en fonction du caractère donné
   (define (dispatch-fn c)
@@ -291,53 +296,48 @@
 ; évaluer une expression à partir de l'asa
 ; retourne une pair avec la valeur à gauche et les variables à droite
 (define (eval node vars)
-  ; évaluer une assignation
-  (define (eval-ass args vars)
-    (let ((v (eval (cdr args) vars)))
-      (if (symbol? v)
-        v
-        (cons (car v) (insert-or-replace (cdr v) (car args) (car v))))))
-  ; évaluer un opérateur d'arité 2
-  (define (eval-op op)
-    (lambda (args vars)
-      (let ((v1 (eval (car args) vars)))
-        ; erreur?
-        (if (symbol? v1)
-          v1
-          (let ((v2 (eval (cdr args) (cdr v1))))
-            ; erreur?
-            (if (symbol? v2)
-              v2
-              (cons (op (car v1) (car v2)) (cdr v2))))))))
-  ; évaluer un nombre
-  (define (eval-num args vars)
-    (cons args vars))
-  ; évaluer une expression d'utilisation de variable
-  (define (eval-use args vars)
-    (let ((r (assoc args vars)))
+  (define (impl node vars f)
+    ; évaluer une assignation
+    (define (eval-ass args vars f)
+      (impl (cdr args) vars (lambda (val vars)
+        (f val (insert-or-replace vars (car args) val)))))
+    ; évaluer un opérateur d'arité 2
+    (define (eval-op op)
+      (lambda (args vars f)
+        (impl (car args) vars (lambda (v1 vars)
+          (impl (cdr args) vars (lambda (v2 vars)
+            (f (op v1 v2) vars)))))))
+    ; évaluer un nombre
+    (define (eval-num args vars f)
+      (f args vars))
+    ; évaluer une expression d'utilisation de variable
+    (define (eval-use args vars f)
+      (let ((r (assoc args vars)))
+        (if r
+          (f (cdr r) vars)
+          'err-undefined-var)))
+    ; dispatch table
+    (define table
+      (list
+        (cons 'ass eval-ass)
+        (cons 'add (eval-op add))
+        (cons 'sub (eval-op sub))
+        (cons 'mul (eval-op mul))
+        (cons 'num eval-num)
+        (cons 'use eval-use)))
+    (let ((r (assoc (node-tag node) table)))
       (if r
-        (cons (cdr r) vars)
-        'err-undefined-var)))
-  ; dispatch table
-  (define table
-    (list
-      (cons 'ass eval-ass)
-      (cons 'add (eval-op add))
-      (cons 'sub (eval-op sub))
-      (cons 'mul (eval-op mul))
-      (cons 'num eval-num)
-      (cons 'use eval-use)))
-  (let ((r (assoc (node-tag node) table)))
-    (if r
-      ((cdr r) (node-args node) vars)
-      'err-invalid-ast-tag)))
+        ((cdr r) (node-args node) vars f)
+        'err-invalid-ast-tag)))
+  (impl node vars (lambda (val vars)
+    (cons val vars))))
 
 (define (format-parser-error err)
   (define table (list
     (cons 'err-not-enough-op "Nombre d'opérandes insuffisant.")
     (cons 'err-invalid-syntax "Syntaxe invalide.")
     (cons 'err-invalid-varname "Nom de variable invalide.")
-    (cons 'err-invalid-num' "Nombre invalide.")
+    (cons 'err-invalid-num "Nombre invalide.")
     (cons 'err-too-many-expr "La ligne contient plus qu'une expression.")
     (cons 'err-invalid-symbol "Symbole invalide.")))
 
@@ -354,7 +354,7 @@
 ; traiter l'expression reçue
 (define (traiter expr dict)
   (if (null? expr)
-    (cons '(#\newline) dict)
+    (cons '() dict)
     (let ((ast (parse-expr expr)))
       (if (symbol? ast)
         (cons (format-parser-error ast) dict)
