@@ -80,17 +80,19 @@
 
         Les noeuds étant des feuilles sont par définition des valeurs. Ils peuvent être un nombre litéral ou la valeur d'une variable dans la liste de variable. Si une variable inexistante est utilisée, une erreur est produite.\\
 	\subsection{Comment se fait l'affectation aux variables}
-        La fonction \lstinline$insert-or-replace$ reconstruit la liste des variables en fonction du nom de la variable à ajouter. Elle parcoure la liste de variables et si le nom d'une variable est identique à celle que nous désirons remplacer, la fonction subtilise la variable courante par la variable que nous désirons ajouter et joint de reste de la liste au résultat. Si le nom de la variable courante n'est pas identique à la variable à ajouter, la variable est simplement ajouté à la liste. Si la liste ne contient pas la variable que nous désirons ajouter, elle l'ajoute à la fin. On obtient donc une nouvelle liste avec la variable soit remplacée ou ajoutée.
+        La fonction \lstinline$insert-or-replace$ reconstruit la liste des variables en fonction du nom de la variable à ajouter. Elle parcourt la liste de variables et si le nom d'une variable est identique à celle que nous désirons remplacer, la fonction subtilise la variable courante par la variable que nous désirons ajouter et joint de reste de la liste au résultat. Si le nom de la variable courante n'est pas identique à la variable à ajouter, la variable courante est simplement ajoutée à la liste. Si la liste ne contient pas la variable que nous désirons ajouter, elle l'ajoute à la fin. On obtient donc une nouvelle liste avec la variable soit remplacée ou ajoutée.
 	\subsection{Comment se fait l'affichage des résultats et erreurs}
         Le nombre produit par l'évaluation est formatté à l'aide de la fonction \lstinline$format-num$. Cette fonction est plutôt simple, si le nombre est négatif elle ajoute un signe négatif, puis les chiffres du nombre. Si le nombre est posifit, elle ajoute les chiffres du nombre. Deux cas particuliers existent, le zéro positif et le zéro négatif produiront \lstinline$"0"$.\\
 
         Lorsqu'une erreur est détectée (question 2e), la fonction d'affichage d'erreur est appelée. Cette fonction contient un dictionnaire d'erreurs (symbole) vers message (string). Le symbole est cherché parmis le dictionnaire et la chaîne de caractères trouvée est convertit en liste de caractères et est retournée.
 	\subsection{Comment se fait le traitement des erreurs}
         Les erreurs sont représentées par un symbole qui débute par \lstinline$'err-$, par exemple \lstinline$'err-invalid-varname$ signifie qu'un nom de variable invalide a été trouvé. Lorsqu'une erreur est détectée, la fonction retourne un symbole approprié pour l'erreur. Si une fonction retourne un symbole, on sait qu'une erreur est survenue lors de l'exécution et on affiche un message approprié (question 2d).
+
+        Dans l'évaluation, les erreurs n'utilisent pas le mécanisme de continuations, elle sont simplement retournées.
 	\newpage
 	\section{Expérience de développement C vs Scheme}
 	\subsection{Kevin}
-	En C, le traitement des variables était plus simple puisque nous travaillions avec un tableau indexé et non pas avec une liste par association qu'il faut parcourir à chaque fois que nous ajoutons, modifions ou accèdons une variable. Aussi, l'utilisation de variable global et l'assignation fut très utile en C puisqu'elle permettait une gestion des variables plus efficace.\\
+	En C, le traitement des variables était plus simple puisque nous travaillions avec un tableau indexé et non pas avec une liste d'associations qu'il faut parcourir à chaque fois que nous ajoutons, modifions ou accèdons une variable. Aussi, l'utilisation de variables globales et l'assignation fuent très utiles en C puisqu'elles permettaient une gestion des variables plus efficace.\\
 	
 	En Scheme, les opérations sur les nombres sont plus facile étant donné que les nombres sont des listes de chiffres et la gestion des listes en Scheme est plus facile qu'en C, où il faut gérer une liste chainée. Aussi, il n'y a pas de gestion de la mémoire en Scheme. La continuation de Scheme permet un arbre de syntaxe abstraite beaucoup plus simple et efficace à comparer à la quantité astronomique de structure et de fonction pour faire le même travail en C.\\
 	
