@@ -36,7 +36,7 @@
 \renewcommand{\footrulewidth}{0.4pt}% default is 0pt
 
 % code listings
-\lstset{language=C}
+\lstset{language=Lisp}
 \lstset{basicstyle=\footnotesize\ttfamily}
 
 \begin{document}
@@ -70,16 +70,23 @@
 	\section{Résolution des problèmes}
 	\renewcommand{\thesubsection}{(\alph{subsection})}
 	\subsection{Comment se fait l'analyse syntaxique d'une expression et comment est réalisé le traitement d'une expression de longueur quelconque}
-	La liste de caractères est séparée en liste de mots à l'aide de la fonction \lstinline$tokens$. Cette fonction sépare une liste de caractères sur les espaces. L'analyseur d'expressions est séparé en plusieurs petites fonctions répondant à une interface identique. Les fonctions prennent en paramètre le mot courant, le reste de la liste de mots et une pile contenant les sous-expressions. La fonction \lstinline$dispatch$ choisit, à partir du premier élément de la liste de mots, quelle fonction d'analyse appeler. Le résultat est un arbre de noeuds représentant l'expression donnée. Les noeuds sont représentés par une paire. Le \lstinline$car$ est un symbole représentant le type du noeud, et le \lstinline$cdr$ représente les arguments (données additionelles).\\
-	
+	La liste de caractères est séparée en liste de mots à l'aide de la fonction \lstinline$tokens$. Cette fonction sépare une liste de caractères sur les espaces. L'analyseur d'expressions est séparé en plusieurs petites fonctions répondant à une interface identique. Les fonctions prennent en paramètre le mot courant, le reste de la liste de mots et une pile contenant les sous-expressions. La fonction \lstinline$dispatch$ choisit, à partir du premier élément de la liste de mots, quelle fonction d'analyse appeler. Le résultat est un arbre de noeuds représentant l'expression donnée.\\
+        
+        Les noeuds sont représentés par une paire. Le \lstinline$car$ est un symbole représentant le type du noeud, et le \lstinline$cdr$ représente les arguments. Les types de noeuds sont \lstinline$'ass$ (assignation de variable), \lstinline$'use$ (utilisation de variable), \lstinline$'num$ (nombre litéral) et \lstinline$'add$, \lstinline$'sub$, \lstinline$'mul$ (opérateur). Les arguments varient en fonction du type de noeud, par exemple un noeud opérateur contient les deux opérandes qui sont eux-même des noeuds.\\
+
+        À la fin de l'analyse, si la pile contient plus qu'une expression, on peut déduire que la ligne entrée contenait plus qu'une expression, et on retourne une erreur appropriée.
 	\subsection{Comment se fait le calcul de l'expression}
-	L'évaluation d'expressions se fait à l'aide de plusieurs petites fonctions en forme itérative ainsi que de continuations. Les fonctions d'évaluation répondent aussi à une interface commune, elle prennent les arguments d'un noeud, la liste des variables, et une continuation qui doit être appelée avec les données produites, soit un nombre et une liste de variables. L'évalutation débute par le noeud \og racine \fg{}. Ses sous noeuds sont évalués en envoyant des continuations qui modifieront le résultat des sous expressions et appèleront la continuation du noeud parent. Lorsque qu'on atteint les feuilles de l'arbre, on a terminé de parcourir l'arbre. Les feuilles appèlent la continuation qui leur a été donnée, et on remonte donc dans l'arbre à l'envers, chaque continuation modifiant le réultat et la liste des variables au besoin.
+	L'évaluation d'expressions se fait à l'aide de plusieurs petites fonctions en forme itérative ainsi que de continuations. Les fonctions d'évaluation répondent aussi à une interface commune, elle prennent les arguments d'un noeud, la liste des variables, et une continuation qui doit être appelée avec les données produites, soit un nombre et une liste de variables. L'évalutation débute par le noeud \og racine \fg{}. Ses sous noeuds sont évalués en envoyant des continuations qui modifieront le résultat des sous expressions et appèleront la continuation du noeud parent. Lorsque qu'on atteint les feuilles de l'arbre, on a terminé de parcourir l'arbre. Les feuilles appèlent la continuation qui leur a été donnée, et on remonte donc dans l'arbre à l'envers, chaque continuation modifiant le réultat et la liste des variables au besoin.\\
+
+        Les noeuds étant des feuilles sont par définition des valeurs. Ils peuvent être un nombre litéral ou la valeur d'une variable dans la liste de variable. Si une variable inexistante est utilisée, une erreur est produite.\\
 	\subsection{Comment se fait l'affectation aux variables}
-	L'affectation des variables se fait de manière destructive. Si la variable demandé existe, nous retirons la paire existante et nous la remplaçons par la nouvelle paire, sinon nous ajoutons la nouvelle paire. Nous utilisons une approche assoc (c'est-à-dire utilisant equal? pour comaprer les cles) pour rechercher la cle.
+        La fonction \lstinline$insert-or-replace$ reconstruit la liste des variables en fonction du nom de la variable à ajouter. Elle parcoure la liste de variables et si le nom d'une variable est identique à celle que nous désirons remplacer, la fonction subtilise la variable courante par la variable que nous désirons ajouter et joint de reste de la liste au résultat. Si le nom de la variable courante n'est pas identique à la variable à ajouter, la variable est simplement ajouté à la liste. Si la liste ne contient pas la variable que nous désirons ajouter, elle l'ajoute à la fin. On obtient donc une nouvelle liste avec la variable soit remplacée ou ajoutée.
 	\subsection{Comment se fait l'affichage des résultats et erreurs}
+        Le nombre produit par l'évaluation est formatté à l'aide de la fonction \lstinline$format-num$. Cette fonction est plutôt simple, si le nombre est négatif elle ajoute un signe négatif, puis les chiffres du nombre. Si le nombre est posifit, elle ajoute les chiffres du nombre. Deux cas particuliers existent, le zéro positif et le zéro négatif produiront \lstinline$"0"$.\\
+
         Lorsqu'une erreur est détectée (question 2e), la fonction d'affichage d'erreur est appelée. Cette fonction contient un dictionnaire d'erreurs (symbole) vers message (string). Le symbole est cherché parmis le dictionnaire et la chaîne de caractères trouvée est convertit en liste de caractères et est retournée.
 	\subsection{Comment se fait le traitement des erreurs}
-        Les erreurs sont représentées par un symbole qui débute par \lstinline$err-$, par exemple \lstinline$err-invalid-varname$ qui signifie qu'un nom de variable invalide a été trouvé. Lorsqu'une erreur est détectée, la fonction retourne un symbole approprié pour l'erreur. Si une fonction retourne un symbole, on sait qu'une erreur est survenue, lors de l'exécution et on affiche un message approprié (question 2d).
+        Les erreurs sont représentées par un symbole qui débute par \lstinline$'err-$, par exemple \lstinline$'err-invalid-varname$ signifie qu'un nom de variable invalide a été trouvé. Lorsqu'une erreur est détectée, la fonction retourne un symbole approprié pour l'erreur. Si une fonction retourne un symbole, on sait qu'une erreur est survenue lors de l'exécution et on affiche un message approprié (question 2d).
 	\newpage
 	\section{Expérience de développement C vs Scheme}
 	\subsection{Kevin}
@@ -88,4 +95,14 @@
 	En Scheme, les opérations sur les nombres sont plus facile étant donné que les nombres sont des listes de chiffres et la gestion des listes en Scheme est plus facile qu'en C, où il faut gérer une liste chainée. Aussi, il n'y a pas de gestion de la mémoire en Scheme. La continuation de Scheme permet un arbre de syntaxe abstraite beaucoup plus simple et efficace à comparer à la quantité astronomique de structure et de fonction pour faire le même travail en C.\\
 	
 	Le style de programmation fonctionnel a été bénéfique pour l'arbre de syntaxe abstraite grâce à la continuation et travailler avec des nombres abitrairement grand grâce à la gestion de liste efficace. Cependant, elle a été détrimentale pour la modification de variable, en particulier, la gestion du dictionnaire aurait été plus simple avec l'assignation et une variable globale et la gestion des variables puisqu'il faut parcourir la liste par association pour modifier ou accèder une variable.\\
+        \subsection{Simon}
+        La programmation fonctionelle m'a permi de résoudre certains problèmes de façons élégante. Dans un langage impératif, j'aurais probablement essayé de gérer les cas limites à l'aide de déclarations conditionelles. Scheme m'a fait réaliser que les cas limite peuvent souvent servir de cas de base, et que les algorithmes qui semblent épineux peuvent parfois s'exprimer de façon succincte.\\
+
+        Les listes sont intéressantes, leur simplicité les rend facile à utiliser. Elles ont quelques désavantages par contre. Si on souhaite travailler avec la fin d'une liste, on doit la parcourir au complet d'abord. De plus, bien que ça ne soit pas le but du Lisp, représenter les listes avec des listes chaînées est probablement moins efficace au niveau de la consommation de mémoire, ainsi que de la fragmentation du tas (heap).\\
+
+        La paire étant la seule structure de donnée disponible, j'aurais aimé pouvoir utiliser des structures (sans mutations) simplement pour rendre le code plus lisible.\\
+
+        J'ai utilisé des continuations lorsque la fonction produit plusieurs résultats car je n'aime pas retourner une paire ou une liste. J'ai aussi utilisé les continuations dans l'évaluation des fonctions pour exprimer un calcul différé.\\
+
+        La forme itérative a été utilisée presque partout dans le travail, car nous voulions s'assurer que la calculatrice peut réellement gérer des nombres de grande taille.
 \end{document}
