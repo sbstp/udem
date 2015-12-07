@@ -72,6 +72,8 @@
         \subsection{Comment se fait le calcul de l'expression}
 	\subsection{Comment se fait l'affectation aux variables}
 	\subsection{Comment se fait l'affichage des résultats et erreurs}
+        Lorsqu'une erreur est détectée (question 2e), la fonction d'affichage d'erreur est appelée. Cette fonction contient un dictionnaire d'erreurs (symbole) vers message (string). Le symbole est cherché parmis le dictionnaire et la chaîne de caractères trouvée est convertit en liste de caractères et est retournée.
 	\subsection{Comment se fait le traitement des erreurs}
+        Les erreurs sont représentées par un symbole qui débute par \lstinline$err-$, par exemple \lstinline$err-invalid-varname$ qui signifie qu'un nom de variable invalide a été trouvé. Lorsqu'une erreur est détectée, la fonction retourne un symbole approprié pour l'erreur. Si une fonction retourne un symbole, on sait qu'une erreur est survenue, lors de l'exécution et on affiche un message approprié (question 2d).
 \section{Expérience de développement C vs Scheme}
 \end{document}
