@@ -42,14 +42,14 @@ read_line:
 	addi $sp, $sp, -12
 	sw $s0, 0($sp)
 	sw $s1, 4($sp)
-
+	
 	# $s0 descripteur de fichier
 	# $s1 compteur
 	move $s0, $a0
 	li $s1, 0
-
+	
 	j read_line_loop
-
+	
 read_line_loop:
 	# lire un octet
 	li $v0, 14
@@ -57,7 +57,7 @@ read_line_loop:
 	la $a1, 8($sp)
 	li $a2, 1
 	syscall
-
+	
 	lb $t2, 8($sp)
 	# on a lu 0 octets, quitter
 	beq $v0, 0, read_line_exit
@@ -65,32 +65,32 @@ read_line_loop:
 	beq $t2, 10, read_line_exit
 	# on a lu CR, ignorer
 	beq $t2, 13, read_line_loop
-
+	
 	# calculer l'adresse et stocker l'octet
 	la $t3, line
 	add $t4, $t3, $s1
 	sb $t2, 0($t4)
-
+	
 	addi $s1, $s1, 1
 	j read_line_loop
-
+	
 read_line_exit:
 	# ajouter l'octet nul
 	li $t2, 0
 	la $t3, line
 	add $t4, $t3, $s1
 	sb $t2, 0($t4)
-
+	
 	# assigner $v0
 	move $v0, $s1
-
+	
 	# désallouer le stack
 	lw $s0, 0($sp)
 	lw $s1, 4($sp)
 	addi $sp, $sp, 12
-
+	
 	jr $ra
-
+	
 # Copie une string dans une autre location.
 #
 # Ajoute l'octet nul à la fin.
@@ -103,30 +103,30 @@ strcpy:
 	addi $sp, $sp, -16
 	sw $s0, 0($sp)
 	sw $s1, 4($sp)
-	sw $s2, 8($sp)
+	sw $s2, 8($sp) 
 	sw $s3, 12($sp)
-
+	
 	move $s0, $a0
 	move $s1, $a1
 	move $s2, $a2
 	li $s3, 0
-
+	
 	j strcpy_loop
-
+	
 strcpy_loop:
 	beq $s2, $s3, strcpy_exit
-
+	
 	# calculer adresses
 	add $t0, $s0, $s3 # dest
 	add $t1, $s1, $s3 # source
-
+	
 	# copie
 	lb $t2, 0($t1)
 	sb $t2, 0($t0)
-
+	
 	addi $s3, $s3, 1
 	j strcpy_loop
-
+	
 strcpy_exit:
 	add $t0, $s0, $s3
 	li $t1, 0
@@ -134,9 +134,55 @@ strcpy_exit:
 
 	lw $s0, 0($sp)
 	lw $s1, 4($sp)
-	lw $s2, 8($sp)
+	lw $s2, 8($sp) 
 	lw $s3, 12($sp)
 	addi $sp, $sp, 16
+	jr $ra
+
+# Trouve la position d'un octet dans une string.
+#
+# Entrée:
+# 	$a0 adresse string
+#	$a1 octet à trouver
+# Sortie:
+#	$v0 position, -1 si non trouvé
+strpos:
+	add $sp, $sp, -12
+	sw $s0, 0($sp)
+	sw $s1, 4($sp)
+	sw $s2, 8($sp)
+	
+	move $s0, $a0
+	move $s1, $a1
+	li $s2, 0
+	
+	j strpos_loop
+	
+strpos_loop:
+	add $t0, $s0, $s2
+	lb $t1, 0($t0)
+	
+	# octet nul, fin de la string
+	beq $t1, 0, strpos_exit_notfound
+	# octet à trouver
+	beq $t1, $s1, strpos_exit_found
+	
+	addi $s2, $s2, 1
+	j strpos_loop
+
+strpos_exit_notfound:
+	li $v0, -1
+	j strpos_exit
+	
+strpos_exit_found:
+	move $v0, $s2
+	j strpos_exit
+	
+strpos_exit:
+	lw $s0, 0($sp)
+	lw $s1, 4($sp)
+	lw $s2, 8($sp)
+	addi $sp, $sp, 12
 	jr $ra
 
 load_table:
