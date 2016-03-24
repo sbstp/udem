@@ -11,7 +11,7 @@
 
 .align 2
 # int table_size;
-table_size: .word
+table_size: .space 4
 
 # struct table_entry table[100];
 table: .space 26000
@@ -27,8 +27,18 @@ path_texte: .asciiz "texte.txt"
 .text
 
 main:
-
 	jal table_load
+	
+	li $a0, 147
+	jal table_lookup
+	
+	move $a0, $v0
+	li $v0, 1
+	syscall
+	
+	move $a0, $v1
+	li $v0, 4
+	syscall
 
 	li $v0, 10
 	syscall
@@ -285,14 +295,14 @@ table_load_loop:
 	
 	move $s4, $v0 # position de la virgule
 	
+	# calculer l'adresse de base
+	mul $s5, $s2, 260
+	add $s5, $s1, $s5
+	
 	# string->int
 	la $a0, line
 	move $a1, $s4
 	jal stoi
-	
-	# calculer l'adresse de base
-	mul $s5, $s2, 260
-	add $s5, $s1, $s5
 	
 	# stocker l'entier
 	sw $v0, 0($s5)
@@ -332,4 +342,58 @@ table_load_exit:
 	lw $s5, 24($sp)
 	addi $sp, $sp, 28
 	
+	jr $ra
+
+# Trouve un élément de la table par numéro
+#
+# Entrée:
+#	$a0 numéro
+# Sortie:
+#  	$v0 numéro ou -1 si non trouvé
+# 	$v1 adresse string
+table_lookup:
+	addi $sp, $sp, -16
+	sw $s0, 0($sp)
+	sw $s1, 4($sp)
+	sw $s2, 8($sp)
+	sw $s3, 12($sp)
+		
+	move $s0, $a0 # numéro
+	li $s1, 0 # compteur
+	la $s2, table # adresse table
+	
+	la $t0, table_size
+	lw $s3, 0($t0) # nombre éléments
+	
+	j table_lookup_loop
+	
+table_lookup_loop:
+	beq $s1, $s3, table_lookup_exit_notfound
+
+	# calculer adresse
+	mul $t0, $s1, 260
+	add $t0, $t0, $s2
+	
+	# compare numéro
+	lw $t1, 0($t0)
+	beq $t1, $s0, table_lookup_exit_found
+	
+	addi $s1, $s1, 1
+	j table_lookup_loop
+	
+table_lookup_exit_notfound:
+	li $v0, -1
+	j table_lookup_exit
+
+table_lookup_exit_found:
+	move $v0, $t1
+	la $v1, 4($t0)
+	j table_lookup_exit
+
+table_lookup_exit:
+	lw $s0, 0($sp)
+	lw $s1, 4($sp)
+	lw $s2, 8($sp)
+	lw $s3, 12($sp)
+	addi $sp, $sp, 16
 	jr $ra
