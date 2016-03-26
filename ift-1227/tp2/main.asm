@@ -5,8 +5,9 @@
 .data
 #
 # struct table_entry {
-#     id int;
-#     text char[256];
+#     int id;
+#     int len;
+#     char text[256];
 # };
 
 .align 2
@@ -14,10 +15,13 @@
 table_size: .space 4
 
 # struct table_entry table[100];
-table: .space 26000
+table: .space 26400
 
 # char* line[256];
 line: .space 256
+
+# char* outbuff[8192]
+outbuff: .space 8192
 
 # const char* path_table = "table.txt"
 path_table: .asciiz "table.txt"
@@ -28,17 +32,7 @@ path_texte: .asciiz "texte.txt"
 
 main:
 	jal table_load
-	
-	li $a0, 147
-	jal table_lookup
-	
-	move $a0, $v0
-	li $v0, 1
-	syscall
-	
-	move $a0, $v1
-	li $v0, 4
-	syscall
+	jal text_load
 
 	li $v0, 10
 	syscall
@@ -254,8 +248,8 @@ stoi_exit:
 #
 # Utilise le fichier table.txt
 #
-# Modifie le bloc de mémoire table. Utilise 260 octets par entrée,
-# 4 pour le nombre, et 256 pour la string.
+# Modifie le bloc de mémoire table. Utilise 264 octets par entrée,
+# 4 pour le nombre, 4 pour la taille de la string, et 256 pour la string.
 table_load:
 	addi $sp, $sp, -28
 	sw $ra, 0($sp)
@@ -304,10 +298,8 @@ table_load_loop:
 	move $a1, $s4
 	jal stoi
 	
-	# stocker l'entier
+	# stocker le numéro
 	sw $v0, 0($s5)
-	
-	# stocker la string
 	
 	# adresse source
 	# ligne + position virgule + 2
@@ -315,12 +307,16 @@ table_load_loop:
 	add $t1, $t1, $s4
 	addi $t1, $t1, 2 # sauter par dessu ,"
 	
-	# quantité à copier
+	# calculer taille de la string
 	# longueur ligne - position virgule - 3
 	addi $t2, $s3, -3
 	sub $t2, $t2, $s4
 	
-	la $a0, 4($s5)
+	# stocker la taille de la string
+	sw $t2, 4($s5)
+	
+	# stocker la string
+	la $a0, 8($s5)
 	move $a1, $t1
 	move $a2, $t2
 	jal strcpy
@@ -332,6 +328,11 @@ table_load_exit:
 	# sauvegarder taille de la table
 	la $t0, table_size
 	sw $s2, 0($t0)
+	
+	# fermer le fd
+	li $v0, 16
+	move $a0, $s0
+	syscall
 
 	lw $ra, 0($sp)
 	lw $s0, 4($sp)
@@ -349,7 +350,7 @@ table_load_exit:
 # Entrée:
 #	$a0 numéro
 # Sortie:
-#  	$v0 numéro ou -1 si non trouvé
+#  	$v0 taille de la string ou -1 si non trouvé
 # 	$v1 adresse string
 table_lookup:
 	addi $sp, $sp, -16
@@ -386,8 +387,8 @@ table_lookup_exit_notfound:
 	j table_lookup_exit
 
 table_lookup_exit_found:
-	move $v0, $t1
-	la $v1, 4($t0)
+	lw $v0, 4($t0)
+	la $v1, 8($t0)
 	j table_lookup_exit
 
 table_lookup_exit:
@@ -396,4 +397,141 @@ table_lookup_exit:
 	lw $s2, 8($sp)
 	lw $s3, 12($sp)
 	addi $sp, $sp, 16
+	jr $ra
+
+
+# Analyse la ligne
+text_format_line:
+	addi $sp, $sp, -20
+	sw $ra, 0($sp)
+	sw $s0, 4($sp)
+	sw $s1, 8($sp)
+	sw $s2, 12($sp)
+	sw $s3, 16($sp)
+
+	la $s0, outbuff # adresse dans la destination
+	la $s1, line # adresse dans la source
+	add $s2, $s1, $a0 # adresse fin de la ligne
+	
+	j text_format_line_loop
+	
+text_format_line_loop:
+	# trouver position du guillemet ouvrant
+	move $a0, $s1
+	li $a1, '"'
+	jal strpos
+	
+	beq $v0, -1, text_format_line_exit
+	
+	# copier tout avant guillemet
+	move $a0, $s0
+	move $a1, $s1
+	move $a2, $v0
+	jal strcpy
+	
+	# avancer dans la destination
+	add $s0, $s0, $v0
+	
+	# avancer dans la source
+	add $s1, $s1, $v0
+	addi $s1, $s1, 1
+	
+	# trouver position du guillemet fermant
+	move $a0, $s1
+	li $a1, '"'
+	jal strpos
+	move $s3, $v0
+	
+	# convertir le nombre en numéro
+	move $a0, $s1
+	move $a1, $v0
+	jal stoi
+	
+	# avancer dans la source
+	add $s1, $s1, $s3
+	addi $s1, $s1, 1
+	
+	# trouver le texte correspondant au numéro
+	move $a0, $v0
+	jal table_lookup
+	
+	# copier l'élément de la table
+	move $s3, $v0
+	
+	move $a0, $s0
+	move $a1, $v1
+	move $a2, $v0
+	jal strcpy
+	
+	# avancer la destination
+	add $s0, $s0, $s3
+	
+	j text_format_line_loop
+	
+text_format_line_exit:
+	# copier reste de la ligne
+	sub $t0, $s2, $s1
+	move $a0, $s0
+	move $a1, $s1
+	move $a2, $t0
+	jal strcpy
+
+	# afficher la ligne
+	# TODO reformatter 100 caractères?
+	li $v0, 4
+	la $a0, outbuff
+	syscall
+	
+	li $v0, 11
+	li $a0, '\n'
+	syscall
+
+	lw $ra, 0($sp)
+	lw $s0, 4($sp)
+	lw $s1, 8($sp)
+	lw $s2, 12($sp)
+	lw $s2, 16($sp)
+	addi $sp, $sp, 20
+	jr $ra
+
+# Charge le fichier texte.
+text_load:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+
+	# ouvrir le fichier
+	li $v0, 13
+	la $a0, path_texte
+	li $a1, 0
+	li $a2, 0
+	syscall
+	
+	move $s1, $v0 # descripteur de fichier
+	
+	j text_load_loop
+	
+text_load_loop:
+	# lire une ligne
+	move $a0, $s1
+	jal read_line
+	
+	# 0 caractères lus, eof
+	beq $v0, 0, text_load_exit
+	
+	move $a0, $v0
+	jal text_format_line
+	
+	#move $a0, $v0
+	#jal text_output_line
+	
+	j text_load_loop
+	
+text_load_exit:
+	# fermer le fd
+	li $v0, 16
+	move $a0, $s0
+	syscall
+
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
 	jr $ra
