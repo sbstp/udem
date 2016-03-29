@@ -38,7 +38,7 @@ main:
 	syscall
 
 
-# Lire une ligne d'un ffichier.
+# Lire une ligne d'un fichier.
 #
 # Change le contenu de line.
 #
